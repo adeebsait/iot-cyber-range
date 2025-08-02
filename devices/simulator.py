@@ -9,7 +9,8 @@ PORT   = int(os.getenv("MQTT_PORT", "1883"))
 DEV_ID = os.getenv("DEVICE_ID", "device001")
 TOPIC  = f"healthcare/{DEV_ID}/vitals"
 
-client = mqtt.Client(DEV_ID)
+# explicitly name the client_id
+client = mqtt.Client(client_id=DEV_ID)
 client.connect(BROKER, PORT)
 
 def generate_vitals():
