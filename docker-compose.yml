@@ -1,4 +1,5 @@
 version: '3.8'
+
 services:
   mqtt-broker:
     image: eclipse-mosquitto:2.0
@@ -17,3 +18,28 @@ services:
       MQTT_PORT: 1883
       DEVICE_ID: device01
     restart: unless-stopped
+
+  suricata:
+    image: jasonish/suricata:latest
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    network_mode: "service:mqtt-broker"
+    volumes:
+      - ./suricata.yaml:/etc/suricata/suricata.yaml:ro
+      - suricata-logs:/var/log/suricata
+    command: ["-i", "eth0", "-c", "/etc/suricata/suricata.yaml", "--init-errors-fatal=yes"]
+
+  threat-emulator:
+    build: ./threat-emulator
+    depends_on:
+      - mqtt-broker
+      - suricata
+    environment:
+      MQTT_BROKER: mqtt-broker
+      MQTT_PORT: 1883
+    network_mode: "service:mqtt-broker"
+    restart: "no"
+
+volumes:
+  suricata-logs:
