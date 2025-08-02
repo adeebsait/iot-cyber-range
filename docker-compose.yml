@@ -41,5 +41,38 @@ services:
     network_mode: "service:mqtt-broker"
     restart: "no"
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.6.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+
+    logstash:
+      image: docker.elastic.co/logstash/logstash:8.6.0
+      depends_on:
+        - elasticsearch
+        - suricata
+      volumes:
+        - ./logstash/pipeline/:/usr/share/logstash/pipeline/:ro
+        - suricata-logs:/var/log/suricata:ro
+      ports:
+        - "5044:5044"
+
+    kibana:
+      image: docker.elastic.co/kibana/kibana:8.6.0
+      depends_on:
+        - elasticsearch
+      environment:
+        - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+        - xpack.security.enabled=false
+      ports:
+        - "5601:5601"
+
 volumes:
+  es-data:
   suricata-logs:
