@@ -1,53 +1,59 @@
 #!/usr/bin/env python3
+import os
+import time
 import json
 import threading
-import time
-import os
 import paho.mqtt.client as mqtt
 
-# Environment-configurable parameters
+# Environment variables (set via docker-compose)
 MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")
-MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
+MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
 SURICATA_LOG = os.getenv("SURICATA_LOG", "/var/log/suricata/eve.json")
-MQTT_TOPIC = "suricata/alerts"
+TOPIC = os.getenv("MQTT_TOPIC", "suricata/events")
 
-def tail_suricata(callback):
-    """Continuously tail the Suricata JSON log and fire callback on each new line."""
+def tail_suricata(on_line):
+    # wait for file to exist
+    while not os.path.isfile(SURICATA_LOG):
+        print(f"[ingest] waiting for {SURICATA_LOG} to appear...")
+        time.sleep(1)
+
+    # open and seek to end, then follow
     with open(SURICATA_LOG, "r") as f:
-        # Go to end of file
         f.seek(0, os.SEEK_END)
         while True:
             line = f.readline()
             if not line:
                 time.sleep(0.1)
                 continue
-            try:
-                record = json.loads(line)
-                callback(record)
-            except json.JSONDecodeError:
-                continue
+            on_line(line.rstrip())
 
-def mqtt_listener():
+def mqtt_publisher():
     client = mqtt.Client()
-    client.connect(MQTT_BROKER, MQTT_PORT)
+    # retry connect until broker is up
+    while True:
+        try:
+            client.connect(MQTT_BROKER, MQTT_PORT)
+            print(f"[ingest] connected to MQTT broker at {MQTT_BROKER}:{MQTT_PORT}")
+            break
+        except Exception as e:
+            print(f"[ingest] MQTT connection failed: {e!r}. retrying in 5s...")
+            time.sleep(5)
+
     client.loop_start()
 
-    def publish(record):
-        # Only forward alerts
-        if record.get("event_type") == "alert":
-            client.publish(MQTT_TOPIC, json.dumps(record), qos=1)
+    def on_line(line):
+        try:
+            # parse JSON line from Suricata
+            ev = json.loads(line)
+        except Exception:
+            return
+        payload = json.dumps(ev)
+        client.publish(TOPIC, payload)
+        print(f"[ingest] published to {TOPIC}: {payload}")
 
-    # Start tailing Suricata in a background thread
-    t = threading.Thread(target=tail_suricata, args=(publish,), daemon=True)
-    t.start()
-
-    # Keep main thread alive to maintain MQTT loop
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        client.loop_stop()
-        client.disconnect()
+    # start tailing in this thread
+    tail_suricata(on_line)
 
 if __name__ == "__main__":
-    mqtt_listener()
+    print("[ingest] starting data ingestor")
+    mqtt_publisher()
