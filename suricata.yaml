@@ -1,21 +1,20 @@
 %YAML 1.1
 ---
+# Rule path
 default-rule-path: /etc/suricata/rules
 rule-files:
   - suricata.rules
 
-#################################################################
-# Run Suricata as an unprivileged user once the capture socket #
-# is open – matches the user and group already present inside  #
-# the Docker image.                                            #
-#################################################################
+########################
+# Privilege dropping   #
+########################
 run-as:
-  user: suricata
+  user: suricata        # UID 1000 inside the official image
   group: suricata
 
-#################################################################
-# Capture settings                                             #
-#################################################################
+########################
+# Packet capture       #
+########################
 af-packet:
   - interface: ens33
     threads: auto
@@ -24,9 +23,9 @@ af-packet:
     cluster-type: cluster_flow
     tpacket-v3: yes
 
-#################################################################
-# Outputs                                                      #
-#################################################################
+########################
+# Outputs              #
+########################
 outputs:
   - eve-log:
       enabled: yes
