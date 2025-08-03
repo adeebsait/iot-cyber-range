@@ -21,14 +21,23 @@ services:
 
   suricata:
     image: jasonish/suricata:latest
+    container_name: suricata
     cap_add:
       - NET_ADMIN
       - NET_RAW
-    network_mode: "service:mqtt-broker"
+    network_mode: "host"
+    user: root
     volumes:
       - ./suricata.yaml:/etc/suricata/suricata.yaml:ro
+      - ./rules:/etc/suricata/rules:ro
       - suricata-logs:/var/log/suricata
-    command: ["-i", "eth0", "-c", "/etc/suricata/suricata.yaml", "--init-errors-fatal=yes"]
+    command:
+      [
+        "-c", "/etc/suricata/suricata.yaml",
+        "-i", "any",                # <-- sniff on all interfaces
+        "--init-errors-fatal"
+      ]
+    restart: unless-stopped
 
   threat-emulator:
     build: ./threat-emulator
