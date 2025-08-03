@@ -44,6 +44,7 @@ services:
       [
         "-c", "/etc/suricata/suricata.yaml",
         "-i", "ens33",
+        "-i", "lo",       # loopback for host-mode MQTT
         "--init-errors-fatal"
       ]
     restart: unless-stopped
