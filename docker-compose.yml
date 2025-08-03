@@ -27,14 +27,12 @@ services:
   suricata:
     image: jasonish/suricata:latest
     container_name: suricata
-    # grant only the caps needed for packet capture + dropping privileges
+    privileged: true                # full packet-socket caps for AF_PACKET
     cap_add:
       - NET_ADMIN
       - NET_RAW
-      - SETUID
-      - SETGID
     network_mode: host
-    user: root
+    # note: no `user:` here, so we run as the image’s non-root `suricata` user
     volumes:
       - ./suricata.yaml:/etc/suricata/suricata.yaml:ro
       - ./rules:/etc/suricata/rules:ro
