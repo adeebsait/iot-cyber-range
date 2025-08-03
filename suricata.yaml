@@ -1,24 +1,25 @@
 %YAML 1.1
 ---
-# Minimal suricata.yaml for Docker
+default-rule-path: /etc/suricata/rules
 
-vars:
-  # where rules live
-  rule-files:
-    - /etc/suricata/rules/suricata.rules
+# Which rules to load
+rule-files:
+  - suricata.rules
 
-  # default home net
-  address-groups:
-    HOME_NET: "[0.0.0.0/0]"
-
+# Outputs
 outputs:
   - eve-log:
       enabled: yes
-      filetype: json
+      filetype: regular
       filename: /var/log/suricata/eve.json
+      types:
+        - alert
+        - dns
+        - http
+        - tls
+        - files
 
-logging:
-  default-log-level: INFO
-  outputs:
-    - console:
-        enabled: yes
+  - stats:
+      enabled: yes
+      filename: /var/log/suricata/stats.log
+
