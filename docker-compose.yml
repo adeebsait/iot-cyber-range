@@ -27,12 +27,12 @@ services:
   suricata:
     image: jasonish/suricata:latest
     container_name: suricata
-    privileged: true                # full packet-socket caps for AF_PACKET
+    privileged: true              # give all kernel capabilities
     cap_add:
-      - NET_ADMIN
+      - NET_ADMIN                  # ensure Suricata can open AF_PACKET sockets
       - NET_RAW
     network_mode: host
-    # note: no `user:` here, so we run as the image’s non-root `suricata` user
+    # no `user:` override—allow the image to drop to its built-in 'suricata' user
     volumes:
       - ./suricata.yaml:/etc/suricata/suricata.yaml:ro
       - ./rules:/etc/suricata/rules:ro
