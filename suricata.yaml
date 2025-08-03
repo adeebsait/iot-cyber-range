@@ -2,24 +2,16 @@
 ---
 default-rule-path: /etc/suricata/rules
 
-# Which rules to load
 rule-files:
   - suricata.rules
 
-# Outputs
 outputs:
   - eve-log:
       enabled: yes
       filetype: regular
       filename: /var/log/suricata/eve.json
-      types:
-        - alert
-        - dns
-        - http
-        - tls
-        - files
+      types: [alert]
 
   - stats:
       enabled: yes
       filename: /var/log/suricata/stats.log
-
