@@ -89,7 +89,9 @@ services:
     volumes:
       - ./data_ingestor:/app:ro
       - suricata-logs:/var/log/suricata:ro
-    command: ["python", "ingest.py"]
+    # install paho-mqtt then run the ingest script
+    command: >
+      sh -c "pip install paho-mqtt && python ingest.py"
     restart: unless-stopped
 
 volumes:
