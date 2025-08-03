@@ -37,8 +37,8 @@ services:
     network_mode: host
     user: root
     volumes:
-      - ./suricata.yaml:/etc/suricata/suricata.yaml:ro
-      - ./rules:/etc/suricata/rules:ro
+      - ./suricata.yaml:/etc/suricata/suricata.yaml
+      - ./rules:/etc/suricata/rules
       - suricata-logs:/var/log/suricata
     command:
       - "-c"
