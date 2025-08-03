@@ -44,7 +44,7 @@ services:
       [
         "-c", "/etc/suricata/suricata.yaml",
         "-i", "ens33",
-        "-i", "lo",       # loopback for host-mode MQTT
+        "-i", "lo",
         "--init-errors-fatal"
       ]
     restart: unless-stopped
@@ -80,6 +80,17 @@ services:
       - xpack.security.enabled=false
     ports:
       - "5601:5601"
+
+  data-ingestor:
+    image: python:3.10-slim
+    container_name: data_ingestor
+    network_mode: host
+    working_dir: /app
+    volumes:
+      - ./data_ingestor:/app:ro
+      - suricata-logs:/var/log/suricata:ro
+    command: ["python", "ingest.py"]
+    restart: unless-stopped
 
 volumes:
   es-data:
