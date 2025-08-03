@@ -27,10 +27,12 @@ services:
   suricata:
     image: jasonish/suricata:latest
     container_name: suricata
-    privileged: true              # grant all caps
-    cap_add:                      # ensure NET_ADMIN is explicitly present
+    # grant only the caps needed for packet capture + dropping privileges
+    cap_add:
       - NET_ADMIN
       - NET_RAW
+      - SETUID
+      - SETGID
     network_mode: host
     user: root
     volumes:
