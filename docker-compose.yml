@@ -27,7 +27,8 @@ services:
   suricata:
     image: jasonish/suricata:latest
     container_name: suricata
-    cap_add:
+    privileged: true              # grant all caps
+    cap_add:                      # ensure NET_ADMIN is explicitly present
       - NET_ADMIN
       - NET_RAW
     network_mode: host
@@ -39,7 +40,7 @@ services:
     command:
       [
         "-c", "/etc/suricata/suricata.yaml",
-        "-i", "any",
+        "-i", "ens33",
         "--init-errors-fatal"
       ]
     restart: unless-stopped

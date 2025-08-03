@@ -1,10 +1,20 @@
 %YAML 1.1
 ---
+# Where to find your custom rules
 default-rule-path: /etc/suricata/rules
-
 rule-files:
   - suricata.rules
 
+# AF_PACKET capture settings
+af-packet:
+  - interface: ens33
+    threads: auto
+    defrag: yes
+    cluster-id: 99
+    cluster-type: cluster_flow
+    tpacket-v3: yes
+
+# Logging / outputs
 outputs:
   - eve-log:
       enabled: yes
