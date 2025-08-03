@@ -81,15 +81,18 @@ services:
       - "5601:5601"
 
   data-ingestor:
-    build: ./data_ingestor
-    container_name: data_ingestor
+    build:
+      context: ./data_ingestor
     network_mode: host
+    depends_on:
+      - mqtt-broker
+      - suricata
+    volumes:
+      - suricata-logs:/var/log/suricata:ro
     environment:
       MQTT_BROKER: localhost
       MQTT_PORT: 1883
       SURICATA_LOG: /var/log/suricata/eve.json
-    volumes:
-      - suricata-logs:/var/log/suricata:ro
     restart: unless-stopped
 
 volumes:
