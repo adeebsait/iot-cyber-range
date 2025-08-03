@@ -37,15 +37,26 @@ services:
     network_mode: host
     user: root
     volumes:
-      - ./suricata.yaml:/etc/suricata/suricata.yaml
-      - ./rules:/etc/suricata/rules
+      - ./suricata.yaml:/etc/suricata/suricata.yaml:ro
+      - ./rules:/etc/suricata/rules:ro
       - suricata-logs:/var/log/suricata
     command:
-      [
-        "-c", "/etc/suricata/suricata.yaml",
-        "-i", "ens33",
-        "--init-errors-fatal"
-      ]
+      - "-c"
+      - "/etc/suricata/suricata.yaml"
+      - "-i"
+      - "ens33"
+      - "--init-errors-fatal"
+    restart: unless-stopped
+
+  data-ingestor:
+    build: ./data_ingestor
+    network_mode: host
+    volumes:
+      - suricata-logs:/var/log/suricata          # so it can read eve.json
+    environment:
+      MQTT_BROKER: localhost
+      MQTT_PORT: 1883
+      SURICATA_LOG: /var/log/suricata/eve.json
     restart: unless-stopped
 
   elasticsearch:
@@ -79,15 +90,6 @@ services:
       - xpack.security.enabled=false
     ports:
       - "5601:5601"
-
-  data-ingestor:
-    build:
-      context: ./data_ingestor
-      dockerfile: Dockerfile
-    network_mode: host
-    volumes:
-      - suricata-logs:/var/log/suricata:ro
-    restart: unless-stopped
 
 volumes:
   es-data:
