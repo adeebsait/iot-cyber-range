@@ -27,19 +27,19 @@ services:
   suricata:
     image: jasonish/suricata:latest
     container_name: suricata
-    cap_add:                # minimal but complete capability set
-      - NET_ADMIN           # open AF_PACKET sockets
+    cap_add:
+      - NET_ADMIN
       - NET_RAW
-      - SETUID              # drop uid
-      - SETGID              # drop gid
-      - SETPCAP             # retain caps after dropping privileges
-      - SYS_NICE            # allow thread priority tweaks
+      - SETUID
+      - SETGID
+      - SETPCAP
+      - SYS_NICE
     network_mode: host
-    user: root              # start as root; will demote inside container
+    user: root
     volumes:
-      - ./suricata.yaml:/etc/suricata/suricata.yaml:ro
-      - ./rules:/etc/suricata/rules:ro
-      - suricata-logs:/var/log/suricata
+      - ./suricata.yaml:/etc/suricata/suricata.yaml        # writable
+      - ./rules:/etc/suricata/rules                        # writable
+      - suricata-logs:/var/log/suricata                    # logs
     command:
       [
         "-c", "/etc/suricata/suricata.yaml",
