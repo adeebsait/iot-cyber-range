@@ -4,6 +4,18 @@ default-rule-path: /etc/suricata/rules
 rule-files:
   - suricata.rules
 
+#################################################################
+# Run Suricata as an unprivileged user once the capture socket #
+# is open – matches the user and group already present inside  #
+# the Docker image.                                            #
+#################################################################
+run-as:
+  user: suricata
+  group: suricata
+
+#################################################################
+# Capture settings                                             #
+#################################################################
 af-packet:
   - interface: ens33
     threads: auto
@@ -12,6 +24,9 @@ af-packet:
     cluster-type: cluster_flow
     tpacket-v3: yes
 
+#################################################################
+# Outputs                                                      #
+#################################################################
 outputs:
   - eve-log:
       enabled: yes
