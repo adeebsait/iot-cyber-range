@@ -1,43 +1,53 @@
+#!/usr/bin/env python3
 import json
+import threading
 import time
-from threading import Thread
-
+import os
 import paho.mqtt.client as mqtt
 
-SURICATA_LOG = "/var/log/suricata/eve.json"
-MQTT_BROKER = "localhost"
-MQTT_PORT = 1883
-MQTT_TOPIC = "healthcare/device01/vitals"
+# Environment-configurable parameters
+MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")
+MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
+SURICATA_LOG = os.getenv("SURICATA_LOG", "/var/log/suricata/eve.json")
+MQTT_TOPIC = "suricata/alerts"
 
-def tail_suricata():
+def tail_suricata(callback):
+    """Continuously tail the Suricata JSON log and fire callback on each new line."""
     with open(SURICATA_LOG, "r") as f:
-        # seek to end of file
-        f.seek(0, 2)
+        # Go to end of file
+        f.seek(0, os.SEEK_END)
         while True:
             line = f.readline()
             if not line:
                 time.sleep(0.1)
                 continue
             try:
-                event = json.loads(line)
-                print("SURICATA:", event)
+                record = json.loads(line)
+                callback(record)
             except json.JSONDecodeError:
                 continue
 
-def on_mqtt_message(client, userdata, msg):
-    try:
-        data = json.loads(msg.payload.decode())
-        print("MQTT:", data)
-    except json.JSONDecodeError:
-        pass
-
 def mqtt_listener():
     client = mqtt.Client()
-    client.on_message = on_mqtt_message
     client.connect(MQTT_BROKER, MQTT_PORT)
-    client.subscribe(MQTT_TOPIC)
-    client.loop_forever()
+    client.loop_start()
+
+    def publish(record):
+        # Only forward alerts
+        if record.get("event_type") == "alert":
+            client.publish(MQTT_TOPIC, json.dumps(record), qos=1)
+
+    # Start tailing Suricata in a background thread
+    t = threading.Thread(target=tail_suricata, args=(publish,), daemon=True)
+    t.start()
+
+    # Keep main thread alive to maintain MQTT loop
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        client.loop_stop()
+        client.disconnect()
 
 if __name__ == "__main__":
-    Thread(target=tail_suricata, daemon=True).start()
     mqtt_listener()
