@@ -81,14 +81,12 @@ services:
       - "5601:5601"
 
   data-ingestor:
-    image: iot-cyber-range_data-ingestor:latest
+    build:
+      context: ./data_ingestor
+      dockerfile: Dockerfile
     network_mode: host
     volumes:
-      - suricata-logs:/var/log/suricata
-    environment:
-      MQTT_BROKER: localhost
-      MQTT_PORT: 1883
-      SURICATA_LOG: /var/log/suricata/eve.json
+      - suricata-logs:/var/log/suricata:ro
     restart: unless-stopped
 
 volumes:
