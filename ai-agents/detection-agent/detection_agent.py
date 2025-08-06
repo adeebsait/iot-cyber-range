@@ -203,7 +203,9 @@ class DetectionAgent:
             bootstrap_servers=[self.kafka_bootstrap_servers],
             value_deserializer=lambda x: json.loads(x.decode('utf-8')),
             group_id='detection-agent',
-            auto_offset_reset='latest'
+            auto_offset_reset='earliest',  # Changed from 'latest' to 'earliest'
+            enable_auto_commit=True,
+            consumer_timeout_ms=1000  # Add timeout to prevent hanging
         )
 
         self.kafka_producer = KafkaProducer(
@@ -212,9 +214,9 @@ class DetectionAgent:
         )
 
         # Training parameters
-        self.training_period = 300  # Train every 5 minutes
+        self.training_period = 120  # Train every 2 minutes (reduced for faster demo)
         self.last_training_time = 0
-        self.min_training_samples = 50
+        self.min_training_samples = 30  # Reduced threshold
 
         # Detection state
         self.detection_active = False
@@ -234,15 +236,21 @@ class DetectionAgent:
     def _kafka_consumer_loop(self):
         """Consume messages from Kafka"""
         try:
+            logger.info("Starting Kafka consumer loop...")
             for message in self.kafka_consumer:
+                logger.info(f"Received message from topic: {message.topic}")
+
                 if message.topic == 'device-telemetry':
                     self.device_data_buffer.append(message.value)
                     # Collect training data (assuming initial data is normal)
                     if len(self.training_data) < 2000:
                         self.training_data.append(message.value)
+                    logger.info(
+                        f"Device telemetry added. Buffer size: {len(self.device_data_buffer)}, Training data: {len(self.training_data)}")
 
                 elif message.topic == 'security-alerts':
                     self.network_alerts_buffer.append(message.value)
+                    logger.info(f"Security alert added. Buffer size: {len(self.network_alerts_buffer)}")
 
         except Exception as e:
             logger.error(f"Kafka consumer error: {e}")
@@ -255,7 +263,9 @@ class DetectionAgent:
 
                 # Check if we need to train models
                 if (current_time - self.last_training_time > self.training_period and
-                        len(self.training_data) >= self.min_training_samples):
+                        len(self.training_data) >= self.min_training_samples and
+                        not self.detection_active):
+                    logger.info("Training conditions met, starting training...")
                     self._train_models()
                     self.last_training_time = current_time
 
@@ -268,7 +278,7 @@ class DetectionAgent:
                             f"Training data: {len(self.training_data)}, "
                             f"Detection active: {self.detection_active}")
 
-                time.sleep(30)  # Detection every 30 seconds
+                time.sleep(15)  # Status update every 15 seconds
 
             except Exception as e:
                 logger.error(f"Detection loop error: {e}")
@@ -289,7 +299,7 @@ class DetectionAgent:
 
             if device_trained or network_trained:
                 self.detection_active = True
-                logger.info("AI models training completed")
+                logger.info("AI models training completed - DETECTION ACTIVE")
             else:
                 logger.warning("Both model training failed")
 
@@ -318,7 +328,7 @@ class DetectionAgent:
                         'details': device_info
                     }
                     alerts_generated.append(alert)
-                    logger.warning(f"DEVICE ANOMALY DETECTED: Score: {device_score:.4f}")
+                    logger.warning(f"🚨 DEVICE ANOMALY DETECTED: Score: {device_score:.4f}")
 
             # Network-level anomaly detection
             if len(self.network_alerts_buffer) >= 5:
@@ -336,7 +346,7 @@ class DetectionAgent:
                         'details': network_info
                     }
                     alerts_generated.append(alert)
-                    logger.warning(f"NETWORK ANOMALY DETECTED: Score: {network_score:.4f}")
+                    logger.warning(f"🚨 NETWORK ANOMALY DETECTED: Score: {network_score:.4f}")
 
             # Send all alerts
             for alert in alerts_generated:
@@ -350,7 +360,7 @@ class DetectionAgent:
         try:
             # Send to Kafka for response agent
             self.kafka_producer.send('ai-alerts', alert)
-            logger.info(f"AI Alert sent: {alert['type']} - {alert['severity']}")
+            logger.info(f"🔔 AI Alert sent: {alert['type']} - {alert['severity']}")
 
         except Exception as e:
             logger.error(f"Alert sending error: {e}")
