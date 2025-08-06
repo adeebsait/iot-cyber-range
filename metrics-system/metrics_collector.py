@@ -314,6 +314,7 @@ class MetricsCollector:
             df = pd.DataFrame(list(self.detection_metrics))
 
             if df.empty:
+                logger.warning("No detection data available for graphing")
                 return
 
             # Set up the plotting style
@@ -323,50 +324,64 @@ class MetricsCollector:
 
             # 1. Detection Timeline
             df['timestamp'] = pd.to_datetime(df['timestamp'])
-            detection_counts = df.groupby([df['timestamp'].dt.floor('T'), 'detector_type']).size().unstack(fill_value=0)
 
-            axes[0, 0].plot(detection_counts.index, detection_counts.get('hybrid_ai', 0),
-                            label='Hybrid AI', marker='o', linewidth=2)
-            axes[0, 0].plot(detection_counts.index, detection_counts.get('suricata_only', 0),
-                            label='Suricata Only', marker='s', linewidth=2)
-            axes[0, 0].set_title('Real-time Detection Activity')
-            axes[0, 0].set_xlabel('Time')
-            axes[0, 0].set_ylabel('Alerts per Minute')
-            axes[0, 0].legend()
-            axes[0, 0].grid(True, alpha=0.3)
+            # Group by minute and detector type
+            df['time_minute'] = df['timestamp'].dt.floor('T')
+            detection_counts = df.groupby(['time_minute', 'detector_type']).size().unstack(fill_value=0)
 
-            # 2. Anomaly Score Distribution
+            if not detection_counts.empty:
+                for detector in detection_counts.columns:
+                    axes[0, 0].plot(detection_counts.index, detection_counts[detector],
+                                    label=detector.replace('_', ' ').title(), marker='o', linewidth=2)
+
+                axes[0, 0].set_title('Real-time Detection Activity')
+                axes[0, 0].set_xlabel('Time')
+                axes[0, 0].set_ylabel('Alerts per Minute')
+                axes[0, 0].legend()
+                axes[0, 0].grid(True, alpha=0.3)
+                axes[0, 0].tick_params(axis='x', rotation=45)
+
+            # 2. Detector Type Distribution
+            detector_counts = df['detector_type'].value_counts()
+            if not detector_counts.empty:
+                colors = plt.cm.Set3(np.linspace(0, 1, len(detector_counts)))
+                axes[0, 1].pie(detector_counts.values,
+                               labels=[d.replace('_', ' ').title() for d in detector_counts.index],
+                               autopct='%1.1f%%', colors=colors)
+                axes[0, 1].set_title('Detection Distribution by Method')
+
+            # 3. Anomaly Score Distribution (if available)
             ai_scores = df[df['detector_type'] == 'hybrid_ai']['anomaly_score'].dropna()
             if len(ai_scores) > 0:
-                axes[0, 1].hist(ai_scores, bins=20, alpha=0.7, color='skyblue', edgecolor='black')
-                axes[0, 1].axvline(ai_scores.mean(), color='red', linestyle='--',
+                axes[1, 0].hist(ai_scores, bins=min(20, len(ai_scores)), alpha=0.7,
+                                color='skyblue', edgecolor='black')
+                axes[1, 0].axvline(ai_scores.mean(), color='red', linestyle='--',
                                    label=f'Mean: {ai_scores.mean():.3f}')
-                axes[0, 1].set_title('AI Anomaly Score Distribution')
-                axes[0, 1].set_xlabel('Anomaly Score')
-                axes[0, 1].set_ylabel('Frequency')
-                axes[0, 1].legend()
-                axes[0, 1].grid(True, alpha=0.3)
-
-            # 3. Detection by Severity
-            severity_counts = df[df['detector_type'] == 'hybrid_ai']['severity'].value_counts()
-            if not severity_counts.empty:
-                colors = {'high': 'red', 'medium': 'orange', 'low': 'green'}
-                severity_colors = [colors.get(sev, 'gray') for sev in severity_counts.index]
-                axes[1, 0].bar(severity_counts.index, severity_counts.values, color=severity_colors)
-                axes[1, 0].set_title('Alert Severity Distribution')
-                axes[1, 0].set_xlabel('Severity Level')
-                axes[1, 0].set_ylabel('Number of Alerts')
+                axes[1, 0].set_title('AI Anomaly Score Distribution')
+                axes[1, 0].set_xlabel('Anomaly Score')
+                axes[1, 0].set_ylabel('Frequency')
+                axes[1, 0].legend()
                 axes[1, 0].grid(True, alpha=0.3)
+            else:
+                axes[1, 0].text(0.5, 0.5, 'No AI anomaly scores available',
+                                ha='center', va='center', transform=axes[1, 0].transAxes)
+                axes[1, 0].set_title('AI Anomaly Score Distribution')
 
-            # 4. Detection Source Analysis
-            source_counts = df[df['detector_type'] == 'hybrid_ai']['source'].value_counts()
-            if not source_counts.empty:
-                axes[1, 1].pie(source_counts.values, labels=source_counts.index, autopct='%1.1f%%')
-                axes[1, 1].set_title('Detection Sources')
+            # 4. Detection Rate Over Time
+            hourly_detections = df.groupby(df['timestamp'].dt.floor('H')).size()
+            if not hourly_detections.empty:
+                axes[1, 1].bar(range(len(hourly_detections)), hourly_detections.values,
+                               alpha=0.7, color='green')
+                axes[1, 1].set_title('Detections per Hour')
+                axes[1, 1].set_xlabel('Time Period')
+                axes[1, 1].set_ylabel('Number of Detections')
+                axes[1, 1].grid(True, alpha=0.3)
 
             plt.tight_layout()
             plt.savefig('/app/detection_performance.png', dpi=300, bbox_inches='tight')
             plt.close()
+
+            logger.info("Detection performance graph generated successfully")
 
         except Exception as e:
             logger.error(f"Detection performance graph error: {e}")
