@@ -119,8 +119,6 @@ services:
       - mqtt-kafka-bridge
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-    volumes:
-      - ./ai-agents/detection-agent/models:/app/models
     restart: unless-stopped
 
   elasticsearch:
