@@ -9,23 +9,28 @@ PORT = int(os.getenv("MQTT_PORT", "1883"))
 DEV_ID = os.getenv("DEVICE_ID", "device001")
 TOPIC = f"healthcare/{DEV_ID}/vitals"
 
-# explicitly name the client_id
-client = mqtt.Client(client_id=DEV_ID)
+# Use API version 2
+client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=DEV_ID)
 
 
-def on_connect(client, userdata, flags, rc):
-    if rc == 0:
+def on_connect(client, userdata, flags, reason_code, properties):
+    if reason_code == 0:
         print(f"Device {DEV_ID} connected to MQTT broker")
     else:
-        print(f"Failed to connect, return code {rc}")
+        print(f"Failed to connect, return code {reason_code}")
 
 
-def on_publish(client, userdata, mid):
+def on_publish(client, userdata, mid, reason_code, properties):
     print(f"Message {mid} published successfully")
+
+
+def on_disconnect(client, userdata, flags, reason_code, properties):
+    print(f"Device {DEV_ID} disconnected with reason code {reason_code}")
 
 
 client.on_connect = on_connect
 client.on_publish = on_publish
+client.on_disconnect = on_disconnect
 
 
 def generate_vitals():
