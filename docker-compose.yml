@@ -218,9 +218,6 @@ services:
       - kafka
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-    volumes:
-      - metrics-data:/app
-      - /var/run/docker.sock:/var/run/docker.sock  # For container metrics
     restart: unless-stopped
 
   performance-evaluator:
