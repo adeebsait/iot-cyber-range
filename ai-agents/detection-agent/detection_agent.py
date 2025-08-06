@@ -12,7 +12,6 @@ import tensorflow as tf
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
 from kafka import KafkaConsumer, KafkaProducer
-import paho.mqtt.client as mqtt
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -20,12 +19,13 @@ logger = logging.getLogger(__name__)
 
 
 class LSTMAutoencoder:
-    def __init__(self, sequence_length=10, n_features=6):
+    def __init__(self, sequence_length=10, n_features=4):
         self.sequence_length = sequence_length
         self.n_features = n_features
         self.model = self._build_model()
         self.scaler = StandardScaler()
         self.is_trained = False
+        self.threshold = 0.05
 
     def _build_model(self):
         model = tf.keras.Sequential([
@@ -48,16 +48,14 @@ class LSTMAutoencoder:
         if len(data) < self.sequence_length:
             return None
 
-        # Extract features
+        # Extract features: heart_rate, spo2, body_temp, timestamp_normalized
         features = []
         for reading in data:
             features.append([
-                reading.get('heart_rate', 0),
-                reading.get('spo2', 0),
-                reading.get('body_temp', 0),
-                reading.get('blood_pressure_sys', 0),
-                reading.get('blood_pressure_dia', 0),
-                reading.get('timestamp', 0) % 86400  # Time of day
+                reading.get('heart_rate', 75),
+                reading.get('spo2', 98),
+                reading.get('body_temp', 36.5),
+                reading.get('timestamp', 0) % 86400  # Time of day normalization
             ])
 
         # Create sequences
@@ -67,44 +65,59 @@ class LSTMAutoencoder:
 
         return np.array(sequences)
 
-    def train(self, training_data, epochs=100):
+    def train(self, training_data, epochs=50):
         """Train the autoencoder on normal data"""
+        logger.info(f"Training LSTM autoencoder with {len(training_data)} samples...")
+
         sequences = self.preprocess_data(training_data)
-        if sequences is None:
+        if sequences is None or len(sequences) < 5:
+            logger.warning("Insufficient data for training")
             return False
 
         # Reshape and scale
         n_samples, seq_len, n_feat = sequences.shape
-        sequences_scaled = self.scaler.fit_transform(sequences.reshape(-1, n_feat)).reshape(n_samples, seq_len, n_feat)
+        sequences_reshaped = sequences.reshape(-1, n_feat)
+        sequences_scaled = self.scaler.fit_transform(sequences_reshaped)
+        sequences_scaled = sequences_scaled.reshape(n_samples, seq_len, n_feat)
 
         # Train model
-        self.model.fit(sequences_scaled, sequences_scaled,
-                       epochs=epochs, batch_size=32, verbose=1,
-                       validation_split=0.1)
+        history = self.model.fit(
+            sequences_scaled, sequences_scaled,
+            epochs=epochs, batch_size=16, verbose=0,
+            validation_split=0.2
+        )
+
+        # Calculate threshold based on training reconstruction error
+        reconstructed = self.model.predict(sequences_scaled, verbose=0)
+        mse = np.mean(np.power(sequences_scaled - reconstructed, 2), axis=(1, 2))
+        self.threshold = np.percentile(mse, 95)  # 95th percentile as threshold
 
         self.is_trained = True
+        logger.info(f"LSTM training completed. Threshold: {self.threshold:.4f}")
         return True
 
-    def detect_anomaly(self, data, threshold=0.1):
+    def detect_anomaly(self, data):
         """Detect anomalies in new data"""
         if not self.is_trained:
-            return False, 0.0
+            return False, 0.0, "Model not trained"
 
         sequences = self.preprocess_data(data)
         if sequences is None:
-            return False, 0.0
+            return False, 0.0, "Insufficient data"
 
         # Scale and predict
         n_samples, seq_len, n_feat = sequences.shape
-        sequences_scaled = self.scaler.transform(sequences.reshape(-1, n_feat)).reshape(n_samples, seq_len, n_feat)
+        sequences_reshaped = sequences.reshape(-1, n_feat)
+        sequences_scaled = self.scaler.transform(sequences_reshaped)
+        sequences_scaled = sequences_scaled.reshape(n_samples, seq_len, n_feat)
 
         reconstructed = self.model.predict(sequences_scaled, verbose=0)
         mse = np.mean(np.power(sequences_scaled - reconstructed, 2), axis=(1, 2))
 
         max_error = np.max(mse)
-        is_anomaly = max_error > threshold
+        is_anomaly = max_error > self.threshold
 
-        return is_anomaly, float(max_error)
+        return is_anomaly, float(max_error), f"Threshold: {self.threshold:.4f}"
 
 
 class NetworkTrafficAnalyzer:
@@ -115,17 +128,23 @@ class NetworkTrafficAnalyzer:
 
     def extract_network_features(self, alerts_data):
         """Extract network-level features from Suricata alerts"""
+        if not alerts_data:
+            return None
+
         features = []
         for alert in alerts_data:
+            flow = alert.get('flow', {})
+            alert_info = alert.get('alert', {})
+
             feature_vector = [
-                len(str(alert.get('payload', ''))),  # Payload size
-                alert.get('flow', {}).get('pkts_toserver', 0),
-                alert.get('flow', {}).get('pkts_toclient', 0),
-                alert.get('flow', {}).get('bytes_toserver', 0),
-                alert.get('flow', {}).get('bytes_toclient', 0),
-                alert.get('alert', {}).get('signature_id', 0),
-                hash(alert.get('src_ip', '')) % 1000,  # IP hash
-                hash(alert.get('dest_port', '')) % 1000  # Port hash
+                flow.get('pkts_toserver', 0),
+                flow.get('pkts_toclient', 0),
+                flow.get('bytes_toserver', 0),
+                flow.get('bytes_toclient', 0),
+                alert_info.get('signature_id', 0),
+                alert.get('src_port', 0),
+                alert.get('dest_port', 0),
+                hash(alert.get('src_ip', '127.0.0.1')) % 1000  # IP hash
             ]
             features.append(feature_vector)
 
@@ -133,23 +152,27 @@ class NetworkTrafficAnalyzer:
 
     def train(self, training_alerts):
         """Train isolation forest on normal network patterns"""
+        logger.info(f"Training network analyzer with {len(training_alerts)} alerts...")
+
         features = self.extract_network_features(training_alerts)
         if features is None or len(features) < 10:
+            logger.warning("Insufficient network data for training")
             return False
 
         features_scaled = self.scaler.fit_transform(features)
         self.isolation_forest.fit(features_scaled)
         self.is_trained = True
+        logger.info("Network analyzer training completed")
         return True
 
     def detect_anomaly(self, alerts_data):
         """Detect network anomalies"""
         if not self.is_trained:
-            return False, 0.0
+            return False, 0.0, "Model not trained"
 
         features = self.extract_network_features(alerts_data)
-        if features is None:
-            return False, 0.0
+        if features is None or len(features) == 0:
+            return False, 0.0, "No network data"
 
         features_scaled = self.scaler.transform(features)
         anomaly_scores = self.isolation_forest.decision_function(features_scaled)
@@ -158,7 +181,7 @@ class NetworkTrafficAnalyzer:
         is_anomaly = -1 in predictions
         anomaly_score = float(np.mean(anomaly_scores))
 
-        return is_anomaly, anomaly_score
+        return is_anomaly, anomaly_score, f"Samples: {len(features)}"
 
 
 class DetectionAgent:
@@ -168,62 +191,37 @@ class DetectionAgent:
         self.network_analyzer = NetworkTrafficAnalyzer()
 
         # Data buffers
-        self.device_data_buffer = deque(maxlen=1000)
-        self.network_alerts_buffer = deque(maxlen=1000)
-        self.training_data = deque(maxlen=5000)
+        self.device_data_buffer = deque(maxlen=500)
+        self.network_alerts_buffer = deque(maxlen=200)
+        self.training_data = deque(maxlen=2000)
 
         # Kafka setup
+        self.kafka_bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
+
         self.kafka_consumer = KafkaConsumer(
             'device-telemetry', 'security-alerts',
-            bootstrap_servers=['localhost:9092'],
+            bootstrap_servers=[self.kafka_bootstrap_servers],
             value_deserializer=lambda x: json.loads(x.decode('utf-8')),
-            group_id='detection-agent'
+            group_id='detection-agent',
+            auto_offset_reset='latest'
         )
 
         self.kafka_producer = KafkaProducer(
-            bootstrap_servers=['localhost:9092'],
+            bootstrap_servers=[self.kafka_bootstrap_servers],
             value_serializer=lambda x: json.dumps(x).encode('utf-8')
         )
 
-        # MQTT setup for device data
-        self.mqtt_client = mqtt.Client(client_id="detection_agent")
-        self.mqtt_client.on_connect = self._on_mqtt_connect
-        self.mqtt_client.on_message = self._on_mqtt_message
-
         # Training parameters
-        self.training_period = 3600  # Train every hour
+        self.training_period = 300  # Train every 5 minutes
         self.last_training_time = 0
-        self.min_training_samples = 100
+        self.min_training_samples = 50
 
         # Detection state
         self.detection_active = False
 
-    def _on_mqtt_connect(self, client, userdata, flags, rc):
-        if rc == 0:
-            logger.info("Connected to MQTT broker")
-            client.subscribe("healthcare/+/vitals")
-        else:
-            logger.error(f"Failed to connect to MQTT: {rc}")
-
-    def _on_mqtt_message(self, client, userdata, msg):
-        try:
-            data = json.loads(msg.payload.decode())
-            data['topic'] = msg.topic
-            self.device_data_buffer.append(data)
-
-            # Send to Kafka for other agents
-            self.kafka_producer.send('device-telemetry', data)
-
-        except Exception as e:
-            logger.error(f"Error processing MQTT message: {e}")
-
     def start(self):
         """Start the detection agent"""
-        logger.info("Starting Detection Agent...")
-
-        # Connect to MQTT
-        self.mqtt_client.connect("localhost", 1883, 60)
-        self.mqtt_client.loop_start()
+        logger.info("Starting AI Detection Agent...")
 
         # Start Kafka consumer thread
         kafka_thread = threading.Thread(target=self._kafka_consumer_loop)
@@ -237,11 +235,15 @@ class DetectionAgent:
         """Consume messages from Kafka"""
         try:
             for message in self.kafka_consumer:
-                if message.topic == 'security-alerts':
+                if message.topic == 'device-telemetry':
+                    self.device_data_buffer.append(message.value)
+                    # Collect training data (assuming initial data is normal)
+                    if len(self.training_data) < 2000:
+                        self.training_data.append(message.value)
+
+                elif message.topic == 'security-alerts':
                     self.network_alerts_buffer.append(message.value)
-                elif message.topic == 'device-telemetry':
-                    # Already handled via MQTT, but could add redundancy here
-                    pass
+
         except Exception as e:
             logger.error(f"Kafka consumer error: {e}")
 
@@ -261,16 +263,16 @@ class DetectionAgent:
                 if self.detection_active:
                     self._perform_detection()
 
-                # Collect training data (assuming normal operation initially)
-                if len(self.device_data_buffer) > 0:
-                    recent_data = list(self.device_data_buffer)[-50:]  # Last 50 readings
-                    self.training_data.extend(recent_data)
+                logger.info(f"Status: Device buffer: {len(self.device_data_buffer)}, "
+                            f"Network buffer: {len(self.network_alerts_buffer)}, "
+                            f"Training data: {len(self.training_data)}, "
+                            f"Detection active: {self.detection_active}")
 
-                time.sleep(10)  # Detection every 10 seconds
+                time.sleep(30)  # Detection every 30 seconds
 
             except Exception as e:
                 logger.error(f"Detection loop error: {e}")
-                time.sleep(5)
+                time.sleep(10)
 
     def _train_models(self):
         """Train both AI models"""
@@ -279,20 +281,17 @@ class DetectionAgent:
         try:
             # Train LSTM autoencoder
             training_list = list(self.training_data)
-            if self.lstm_autoencoder.train(training_list):
-                logger.info("LSTM autoencoder trained successfully")
-            else:
-                logger.warning("LSTM autoencoder training failed")
+            device_trained = self.lstm_autoencoder.train(training_list)
 
             # Train network analyzer
             alerts_list = list(self.network_alerts_buffer)
-            if self.network_analyzer.train(alerts_list):
-                logger.info("Network analyzer trained successfully")
-            else:
-                logger.warning("Network analyzer training failed")
+            network_trained = self.network_analyzer.train(alerts_list)
 
-            self.detection_active = True
-            logger.info("AI models training completed")
+            if device_trained or network_trained:
+                self.detection_active = True
+                logger.info("AI models training completed")
+            else:
+                logger.warning("Both model training failed")
 
         except Exception as e:
             logger.error(f"Training error: {e}")
@@ -300,10 +299,12 @@ class DetectionAgent:
     def _perform_detection(self):
         """Perform anomaly detection"""
         try:
+            alerts_generated = []
+
             # Device-level anomaly detection
             if len(self.device_data_buffer) >= 10:
                 recent_device_data = list(self.device_data_buffer)[-50:]
-                device_anomaly, device_score = self.lstm_autoencoder.detect_anomaly(recent_device_data)
+                device_anomaly, device_score, device_info = self.lstm_autoencoder.detect_anomaly(recent_device_data)
 
                 if device_anomaly:
                     alert = {
@@ -311,15 +312,18 @@ class DetectionAgent:
                         'type': 'device_anomaly',
                         'source': 'lstm_autoencoder',
                         'anomaly_score': device_score,
-                        'device_data': recent_device_data[-1],  # Latest reading
-                        'severity': 'high' if device_score > 0.5 else 'medium'
+                        'severity': 'high' if device_score > 0.1 else 'medium',
+                        'device_id': recent_device_data[-1].get('device_id', 'unknown'),
+                        'latest_vitals': recent_device_data[-1],
+                        'details': device_info
                     }
-                    self._send_alert(alert)
+                    alerts_generated.append(alert)
+                    logger.warning(f"DEVICE ANOMALY DETECTED: Score: {device_score:.4f}")
 
             # Network-level anomaly detection
-            if len(self.network_alerts_buffer) > 0:
+            if len(self.network_alerts_buffer) >= 5:
                 recent_alerts = list(self.network_alerts_buffer)[-20:]
-                network_anomaly, network_score = self.network_analyzer.detect_anomaly(recent_alerts)
+                network_anomaly, network_score, network_info = self.network_analyzer.detect_anomaly(recent_alerts)
 
                 if network_anomaly:
                     alert = {
@@ -327,10 +331,16 @@ class DetectionAgent:
                         'type': 'network_anomaly',
                         'source': 'isolation_forest',
                         'anomaly_score': network_score,
-                        'recent_alerts': len(recent_alerts),
-                        'severity': 'high' if network_score < -0.5 else 'medium'
+                        'severity': 'high' if network_score < -0.5 else 'medium',
+                        'recent_alerts_count': len(recent_alerts),
+                        'details': network_info
                     }
-                    self._send_alert(alert)
+                    alerts_generated.append(alert)
+                    logger.warning(f"NETWORK ANOMALY DETECTED: Score: {network_score:.4f}")
+
+            # Send all alerts
+            for alert in alerts_generated:
+                self._send_alert(alert)
 
         except Exception as e:
             logger.error(f"Detection error: {e}")
@@ -338,12 +348,9 @@ class DetectionAgent:
     def _send_alert(self, alert):
         """Send alert to response agent and dashboard"""
         try:
-            logger.warning(f"ANOMALY DETECTED: {alert['type']} - Score: {alert['anomaly_score']}")
-
             # Send to Kafka for response agent
             self.kafka_producer.send('ai-alerts', alert)
-
-            # Could also send to external systems, databases, etc.
+            logger.info(f"AI Alert sent: {alert['type']} - {alert['severity']}")
 
         except Exception as e:
             logger.error(f"Alert sending error: {e}")
