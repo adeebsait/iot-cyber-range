@@ -70,19 +70,16 @@ services:
     restart: unless-stopped
 
   zookeeper:
-    image: confluentinc/cp-zookeeper:latest
+    image: wurstmeister/zookeeper:latest
     container_name: zookeeper
     networks:
       - iot-network
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
     restart: unless-stopped
 
   kafka:
-    image: confluentinc/cp-kafka:latest
+    image: wurstmeister/kafka:latest
     container_name: kafka
     networks:
       - iot-network
@@ -91,19 +88,12 @@ services:
     ports:
       - "9092:9092"
     environment:
-      KAFKA_BROKER_ID: 1
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_ADVERTISED_PORT: 9092
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_CREATE_TOPICS: "security-alerts:1:1,device-telemetry:1:1,ai-alerts:1:1"
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.6.0
@@ -119,11 +109,6 @@ services:
     ports:
       - "9200:9200"
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
 
   logstash:
     image: docker.elastic.co/logstash/logstash:8.6.0
@@ -131,12 +116,9 @@ services:
     networks:
       - iot-network
     depends_on:
-      elasticsearch:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-      suricata:
-        condition: service_started
+      - elasticsearch
+      - kafka
+      - suricata
     volumes:
       - ./logstash/pipeline/:/usr/share/logstash/pipeline/:ro
       - suricata-logs:/var/log/suricata:ro
@@ -150,48 +132,10 @@ services:
     networks:
       - iot-network
     depends_on:
-      elasticsearch:
-        condition: service_healthy
+      - elasticsearch
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
       - xpack.security.enabled=false
     ports:
       - "5601:5601"
-    restart: unless-stopped
-
-  # AI Detection Agent
-  detection-agent:
-    build: ./ai-agents/detection-agent
-    container_name: detection-agent
-    networks:
-      - iot-network
-    depends_on:
-      kafka:
-        condition: service_healthy
-      mqtt-broker:
-        condition: service_started
-    environment:
-      MQTT_BROKER: mqtt-broker
-      MQTT_PORT: 1883
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      ELASTICSEARCH_HOST: elasticsearch:9200
-    volumes:
-      - ./ai-agents/detection-agent/models:/app/models
-    restart: unless-stopped
-
-  # AI Response Agent
-  response-agent:
-    build: ./ai-agents/response-agent
-    container_name: response-agent
-    networks:
-      - iot-network
-    depends_on:
-      kafka:
-        condition: service_healthy
-    environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      MQTT_BROKER: mqtt-broker
-      MQTT_PORT: 1883
-    volumes:
-      - ./ai-agents/response-agent/models:/app/models
     restart: unless-stopped
