@@ -1,2 +1,15 @@
-alert tcp any any -> any 1883 (msg:"MQTT malformed packet"; flow:established; content:"|30 FF|"; sid:1000001; rev:1;)
-alert tcp any any -> any 1883 (msg:"MQTT DoS connect flood"; flow:stateless; detection_filter:track by_src, count 30, seconds 1; sid:1000002; rev:1;)
+# IoT Healthcare Security Rules
+# Malformed MQTT packet detection
+alert tcp any any -> any 1883 (msg:"IoT: Malformed MQTT packet detected"; content:"|30 FF|"; offset:0; depth:2; classtype:protocol-command-decode; sid:1000001; rev:1;)
+
+# MQTT DoS - rapid connection attempts
+alert tcp any any -> any 1883 (msg:"IoT: MQTT DoS attack - rapid connections"; flags:S; threshold:type both, track by_src, count 10, seconds 5; classtype:attempted-dos; sid:1000002; rev:1;)
+
+# Unauthorized MQTT topic access
+alert tcp any any -> any 1883 (msg:"IoT: Unauthorized access to admin topics"; content:"healthcare/admin/"; nocase; classtype:attempted-admin; sid:1000003; rev:1;)
+
+# Abnormal payload size
+alert tcp any any -> any 1883 (msg:"IoT: Abnormally large MQTT payload"; dsize:>1024; content:"healthcare/"; classtype:policy-violation; sid:1000004; rev:1;)
+
+# Suspicious device ID pattern
+alert tcp any any -> any 1883 (msg:"IoT: Suspicious device ID pattern"; pcre:"/healthcare\/[^\/]{20,}/"; classtype:trojan-activity; sid:1000005; rev:1;)
