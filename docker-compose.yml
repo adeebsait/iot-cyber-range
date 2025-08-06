@@ -3,25 +3,33 @@ version: '3.8'
 services:
   mqtt-broker:
     image: eclipse-mosquitto:2.0
+    container_name: mqtt-broker
     network_mode: host
     volumes:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    restart: unless-stopped
 
   device-sim:
     build: ./devices
+    container_name: device-sim
     network_mode: host
     environment:
       MQTT_BROKER: localhost
       MQTT_PORT: 1883
       DEVICE_ID: device01
+    depends_on:
+      - mqtt-broker
     restart: unless-stopped
 
   threat-emulator:
     build: ./threat-emulator
+    container_name: threat-emulator
     network_mode: host
     environment:
       MQTT_BROKER: localhost
       MQTT_PORT: 1883
+    depends_on:
+      - mqtt-broker
     restart: "no"
 
   suricata:
@@ -37,30 +45,20 @@ services:
     network_mode: host
     user: root
     volumes:
-      - ./suricata.yaml:/etc/suricata/suricata.yaml
-      - ./rules:/etc/suricata/rules
+      - ./suricata.yaml:/etc/suricata/suricata.yaml:rw
+      - ./rules:/etc/suricata/rules:rw
       - suricata-logs:/var/log/suricata
-    command:
-      - "-c"
-      - "/etc/suricata/suricata.yaml"
-      - "-i"
-      - "ens33"
-      - "--init-errors-fatal"
-    restart: unless-stopped
-
-  data-ingestor:
-    build: ./data_ingestor
-    network_mode: host
-    volumes:
-      - suricata-logs:/var/log/suricata          # so it can read eve.json
-    environment:
-      MQTT_BROKER: localhost
-      MQTT_PORT: 1883
-      SURICATA_LOG: /var/log/suricata/eve.json
+    command: [
+      "-c", "/etc/suricata/suricata.yaml",
+      "-i", "ens33",
+      "-i", "lo",
+      "--init-errors-fatal"
+    ]
     restart: unless-stopped
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.6.0
+    container_name: elasticsearch
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
@@ -69,9 +67,11 @@ services:
       - es-data:/usr/share/elasticsearch/data
     ports:
       - "9200:9200"
+    restart: unless-stopped
 
   logstash:
     image: docker.elastic.co/logstash/logstash:8.6.0
+    container_name: logstash
     depends_on:
       - elasticsearch
       - suricata
@@ -80,9 +80,11 @@ services:
       - suricata-logs:/var/log/suricata:ro
     ports:
       - "5044:5044"
+    restart: unless-stopped
 
   kibana:
     image: docker.elastic.co/kibana/kibana:8.6.0
+    container_name: kibana
     depends_on:
       - elasticsearch
     environment:
@@ -90,6 +92,30 @@ services:
       - xpack.security.enabled=false
     ports:
       - "5601:5601"
+    restart: unless-stopped
+
+  # Kafka for AI agent communication
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
 volumes:
   es-data:
