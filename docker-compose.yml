@@ -109,6 +109,20 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     restart: unless-stopped
 
+  detection-agent:
+    build: ./ai-agents/detection-agent
+    container_name: detection-agent
+    networks:
+      - iot-network
+    depends_on:
+      - kafka
+      - mqtt-kafka-bridge
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    volumes:
+      - ./ai-agents/detection-agent/models:/app/models
+    restart: unless-stopped
+
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.6.0
     container_name: elasticsearch
