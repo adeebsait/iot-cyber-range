@@ -95,6 +95,20 @@ services:
       KAFKA_CREATE_TOPICS: "security-alerts:1:1,device-telemetry:1:1,ai-alerts:1:1"
     restart: unless-stopped
 
+  mqtt-kafka-bridge:
+    build: ./mqtt-kafka-bridge
+    container_name: mqtt-kafka-bridge
+    networks:
+      - iot-network
+    depends_on:
+      - kafka
+      - mqtt-broker
+    environment:
+      MQTT_BROKER: mqtt-broker
+      MQTT_PORT: 1883
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    restart: unless-stopped
+
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.6.0
     container_name: elasticsearch
