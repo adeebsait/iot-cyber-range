@@ -1,0 +1,33 @@
+{
+  "timestamp": "2025-08-06T19:10:14.554353",
+  "total_detections": 190,
+  "system_uptime_minutes": 10.833333333333334,
+  "detection_methods": {
+    "lstm_only": {
+      "total_alerts": 64,
+      "avg_score": 244633.57091433028,
+      "high_severity": 0
+    },
+    "isolation_forest_only": {
+      "total_alerts": 48,
+      "avg_score": 0.056457439084682655,
+      "high_severity": 0
+    },
+    "hybrid_ai": {
+      "total_alerts": 78,
+      "avg_score": 1.1076964661630286,
+      "high_severity": 39
+    }
+  },
+  "performance_summary": {
+    "avg_cpu_usage": 4.151538461538462,
+    "max_cpu_usage": 39.0,
+    "avg_memory_usage": 80.38615384615385,
+    "max_memory_usage": 83.1
+  },
+  "key_findings": [
+    "Generated 190 total detections",
+    "Hybrid AI system generated 78 detections",
+    "39 high-severity alerts detected"
+  ]
+}
