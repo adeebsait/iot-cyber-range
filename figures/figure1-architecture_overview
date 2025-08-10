@@ -1,0 +1,95 @@
+---
+config:
+  layout: elk
+  theme: redux
+  look: neo
+---
+flowchart TB
+ subgraph subGraph0["Healthcare IoT Environment"]
+        D1["Patient Monitors"]
+        D2["Medical Pumps"]
+        D3["Network Infrastructure"]
+  end
+ subgraph subGraph1["Data Collection"]
+        MQTT["MQTT Broker"]
+        NET["Network Monitor"]
+  end
+ subgraph subGraph2["Message Broker"]
+        KAFKA["Apache Kafka"]
+        T1["Device Data Topic"]
+        T2["Security Alerts Topic"]
+        T3["AI Alerts Topic"]
+  end
+ subgraph subGraph3["Detection Agents"]
+        AI["Hybrid AI Agent<br>LSTM + Isolation Forest"]
+        BASE["Baseline Agents<br>Suricata/LSTM/Forest Only"]
+  end
+ subgraph subGraph4["Response Agents"]
+        RESP["Response Agent<br>Threat Mitigation"]
+  end
+ subgraph subGraph5["Evaluation Agents"]
+        EVAL["Metrics &amp; Performance<br>Evaluation Agent"]
+  end
+ subgraph Coordination["Coordination"]
+        COORD["Coordination Agent<br>Agent Management"]
+  end
+ subgraph subGraph7["Multi-Agent Framework"]
+        subGraph3
+        subGraph4
+        subGraph5
+        Coordination
+  end
+ subgraph subGraph8["Response Actions"]
+        ALERT["Security Alerts"]
+        ISOLATE["Device Isolation"]
+        NOTIFY["Staff Notification"]
+  end
+ subgraph subGraph9["Monitoring & Storage"]
+        DASH["Security Dashboard"]
+        DB[("Metrics Database")]
+  end
+ subgraph subGraph10["Testing Environment"]
+        SIM["Device Simulators"]
+        ATK["Attack Simulators"]
+  end
+    D1 --> MQTT
+    D2 --> MQTT
+    D3 --> NET
+    MQTT --> KAFKA
+    NET --> KAFKA
+    KAFKA --> T1 & T2 & T3
+    T1 --> AI & BASE
+    T2 --> AI & BASE
+    AI --> T3
+    BASE --> T3
+    T3 --> RESP & EVAL & COORD
+    RESP --> ALERT & ISOLATE & NOTIFY
+    EVAL --> DASH & DB
+    SIM --> MQTT
+    ATK --> NET
+    COORD -.-> AI & BASE & RESP & EVAL
+     D1:::deviceClass
+     D2:::deviceClass
+     D3:::deviceClass
+     MQTT:::infrastructureClass
+     NET:::infrastructureClass
+     KAFKA:::infrastructureClass
+     T1:::infrastructureClass
+     T2:::infrastructureClass
+     T3:::infrastructureClass
+     AI:::agentClass
+     BASE:::agentClass
+     RESP:::agentClass
+     EVAL:::agentClass
+     COORD:::agentClass
+     ALERT:::responseClass
+     ISOLATE:::responseClass
+     NOTIFY:::responseClass
+     DASH:::responseClass
+     DB:::infrastructureClass
+     SIM:::deviceClass
+    classDef deviceClass fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef agentClass fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef infrastructureClass fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    classDef responseClass fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style ATK fill:#FFCDD2,stroke:#D50000
