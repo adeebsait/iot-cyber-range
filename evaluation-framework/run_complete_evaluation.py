@@ -2,48 +2,56 @@ import time
 import threading
 from ground_truth_generator import GroundTruthGenerator
 from comprehensive_evaluator import ComprehensivePerformanceEvaluator
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def run_complete_evaluation():
     """Run complete evaluation with ground truth generation and comprehensive metrics"""
 
-    print("🚀 Starting Complete Multi-Agent System Evaluation")
-    print("=" * 60)
+    logger.info("🚀 Starting Complete Multi-Agent System Evaluation")
+    logger.info("=" * 60)
 
     # Initialize components
     ground_truth_gen = GroundTruthGenerator()
     evaluator = ComprehensivePerformanceEvaluator()
 
     # Generate attack sequence
-    print("📋 Generating controlled attack sequence...")
+    logger.info("📋 Generating controlled attack sequence...")
     attack_schedule = ground_truth_gen.generate_controlled_attack_sequence(
         total_duration_minutes=120,  # 2 hours of testing
         attack_frequency=5
     )
 
-    print(f"✅ Generated {len(attack_schedule)} events for evaluation")
+    logger.info(f"✅ Generated {len(attack_schedule)} events for evaluation")
 
-    # Start evaluator
-    print("🔬 Starting comprehensive evaluator...")
+    # Start evaluator in background thread
+    logger.info("🔬 Starting comprehensive evaluator...")
     eval_thread = threading.Thread(
         target=evaluator.start_comprehensive_evaluation,
-        args=(2,)  # 2 hours evaluation
+        args=(2,),  # 2 hours evaluation
+        daemon=True
     )
-    eval_thread.daemon = True
     eval_thread.start()
 
     # Wait for evaluator to initialize
     time.sleep(10)
 
     # Execute attack sequence with ground truth
-    print("🎯 Executing attack sequence with ground truth generation...")
-    ground_truth_gen.execute_attack_sequence(attack_schedule)
+    logger.info("🎯 Executing attack sequence with ground truth generation...")
+    try:
+        ground_truth_gen.execute_attack_sequence(attack_schedule)
+    except Exception as e:
+        logger.error(f"❌ Attack sequence execution error: {e}")
 
     # Wait for evaluation to complete
-    eval_thread.join()
+    logger.info("⏳ Waiting for evaluation to complete...")
+    eval_thread.join(timeout=7200)  # 2 hour timeout
 
-    print("✅ Complete evaluation finished!")
-    print("📊 Check /app/ directory for comprehensive reports and visualizations")
+    logger.info("✅ Complete evaluation finished!")
+    logger.info("📊 Check /app/ directory for comprehensive reports and visualizations")
 
 
 if __name__ == "__main__":
