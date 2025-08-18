@@ -9,6 +9,8 @@ volumes:
   suricata-logs:
   metrics-data:
   evaluation-data:
+  evaluation-reports:
+  evaluation-graphs:
 
 services:
   # Core Infrastructure
@@ -46,7 +48,7 @@ services:
       KAFKA_ADVERTISED_PORT: 9092
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
-      KAFKA_CREATE_TOPICS: "security-alerts:1:1,device-telemetry:1:1,ai-alerts:1:1,baseline-alerts:1:1,ground-truth:1:1,simulated-anomalies:1:1"
+      KAFKA_CREATE_TOPICS: "security-alerts:1:1,device-telemetry:1:1,ai-alerts:1:1,baseline-alerts:1:1,ground-truth:1:1,simulated-anomalies:1:1,simulated-attacks:1:1"
     restart: unless-stopped
 
   elasticsearch:
@@ -251,7 +253,45 @@ services:
       - .:/workspace
     working_dir: /workspace
     command: ["python", "attack_simulator.py"]
-    restart: "no"  # Run once for evaluation
+    restart: "no"
+
+  # NEW: Comprehensive Evaluation Framework
+  evaluation-framework:
+    build: ./evaluation-framework
+    container_name: evaluation-framework
+    networks:
+      - iot-network
+    depends_on:
+      - kafka
+      - detection-agent
+      - suricata-only-detector
+      - lstm-only-detector
+      - isolation-forest-detector
+      - metrics-collector
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    volumes:
+      - evaluation-reports:/app/reports
+      - evaluation-graphs:/app/graphs
+      - evaluation-data:/app/data
+      - ./evaluation-results:/app/evaluation-results
+    command: ["python", "run_complete_evaluation.py"]
+    restart: "no"  # Run once for comprehensive evaluation
+
+  # Ground Truth Generator (NEW)
+  ground-truth-generator:
+    build: ./evaluation-framework
+    container_name: ground-truth-generator
+    networks:
+      - iot-network
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    volumes:
+      - evaluation-data:/app/data
+    command: ["python", "ground_truth_generator.py"]
+    restart: "no"  # Run for controlled attack generation
 
   # Web Dashboard (Optional - for visualization)
   grafana:
@@ -266,3 +306,4 @@ services:
     volumes:
       - ./grafana:/etc/grafana/provisioning
     restart: unless-stopped
+
