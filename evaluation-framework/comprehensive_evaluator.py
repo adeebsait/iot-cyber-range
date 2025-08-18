@@ -198,15 +198,15 @@ class ComprehensivePerformanceEvaluator:
             # Get current system status
             conn = sqlite3.connect(self.db_path)
 
-            # Count detection events so far
+            # Count detection events so far - FIXED pandas indexing
             detection_count_query = "SELECT COUNT(*) as count FROM detection_events"
             detection_result = pd.read_sql_query(detection_count_query, conn)
-            detection_count = detection_result.iloc['count'] if not detection_result.empty else 0
+            detection_count = detection_result.iloc[0]['count'] if not detection_result.empty else 0
 
-            # Count ground truth events
+            # Count ground truth events - FIXED pandas indexing
             ground_truth_count_query = "SELECT COUNT(*) as count FROM ground_truth"
             ground_truth_result = pd.read_sql_query(ground_truth_count_query, conn)
-            ground_truth_count = ground_truth_result.iloc['count'] if not ground_truth_result.empty else 0
+            ground_truth_count = ground_truth_result.iloc[0]['count'] if not ground_truth_result.empty else 0
 
             conn.close()
 
