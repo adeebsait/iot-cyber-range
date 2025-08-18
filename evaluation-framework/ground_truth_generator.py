@@ -7,6 +7,10 @@ from kafka import KafkaProducer
 from dataclasses import dataclass
 from typing import List, Dict, Optional
 import uuid
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -150,7 +154,7 @@ class GroundTruthGenerator:
             }
 
             self.producer.send('ground-truth', ground_truth_data)
-            print(f"🎯 Ground Truth Event: {event.event_type} - {event.description}")
+            logger.info(f"🎯 Ground Truth Event: {event.event_type} - {event.description}")
 
             if event.event_type == 'attack':
                 self._simulate_attack(event)
@@ -159,7 +163,7 @@ class GroundTruthGenerator:
 
     def _simulate_attack(self, event):
         """Simulate the actual attack based on the event type"""
-        print(f"🚨 Executing {event.attack_category} attack for {event.attack_duration}s")
+        logger.info(f"🚨 Executing {event.attack_category} attack for {event.attack_duration}s")
 
         if event.attack_category == 'dos':
             self._simulate_dos_attack(event)
@@ -174,8 +178,6 @@ class GroundTruthGenerator:
 
     def _simulate_dos_attack(self, event):
         """Simulate DoS attack by generating high network traffic"""
-        # This would integrate with your existing attack simulators
-        # For now, we'll simulate by injecting anomalous network patterns
         attack_data = {
             'attack_type': 'dos_flood',
             'intensity': event.attack_intensity,
@@ -184,16 +186,85 @@ class GroundTruthGenerator:
             'timestamp': datetime.now().isoformat()
         }
         self.producer.send('simulated-attacks', attack_data)
-        time.sleep(event.attack_duration)
+        logger.info(f"🔥 DoS attack simulated for {event.attack_duration}s")
+        time.sleep(min(event.attack_duration, 60))
 
     def _simulate_device_anomaly(self, event):
         """Simulate device compromise by injecting anomalous telemetry"""
         anomaly_data = {
-            'device_id': random.choice(event.affected_devices),
+            'device_id': 'device01',
             'anomaly_type': 'vital_signs_manipulation',
             'intensity': event.attack_intensity,
             'duration': event.attack_duration,
             'timestamp': datetime.now().isoformat()
         }
         self.producer.send('simulated-anomalies', anomaly_data)
-        time.sleep(event.attack_duration)
+        logger.info(f"🩺 Device anomaly simulated for {event.attack_duration}s")
+        time.sleep(min(event.attack_duration, 60))
+
+    def _simulate_malformed_packets(self, event):
+        """Simulate malformed packet injection"""
+        attack_data = {
+            'attack_type': 'malformed_packets',
+            'intensity': event.attack_intensity,
+            'duration': event.attack_duration,
+            'timestamp': datetime.now().isoformat()
+        }
+        self.producer.send('simulated-attacks', attack_data)
+        logger.info(f"📦 Malformed packets simulated for {event.attack_duration}s")
+        time.sleep(min(event.attack_duration, 60))
+
+    def _simulate_reconnaissance(self, event):
+        """Simulate network reconnaissance"""
+        attack_data = {
+            'attack_type': 'reconnaissance',
+            'intensity': event.attack_intensity,
+            'duration': event.attack_duration,
+            'timestamp': datetime.now().isoformat()
+        }
+        self.producer.send('simulated-attacks', attack_data)
+        logger.info(f"🔍 Reconnaissance simulated for {event.attack_duration}s")
+        time.sleep(min(event.attack_duration, 60))
+
+    def _simulate_multi_vector_attack(self, event):
+        """Simulate multi-vector attack combining multiple techniques"""
+        logger.info(f"⚔️ Multi-vector attack starting - {event.attack_duration}s duration")
+
+        # Simulate multiple attack types in sequence
+        duration_per_attack = event.attack_duration / 3
+
+        # 1. Reconnaissance phase
+        attack_data1 = {
+            'attack_type': 'reconnaissance',
+            'phase': '1_reconnaissance',
+            'intensity': event.attack_intensity,
+            'duration': duration_per_attack,
+            'timestamp': datetime.now().isoformat()
+        }
+        self.producer.send('simulated-attacks', attack_data1)
+        time.sleep(duration_per_attack / 3)
+
+        # 2. Device compromise phase
+        anomaly_data = {
+            'device_id': 'device01',
+            'anomaly_type': 'multi_vector_compromise',
+            'phase': '2_compromise',
+            'intensity': event.attack_intensity,
+            'duration': duration_per_attack,
+            'timestamp': datetime.now().isoformat()
+        }
+        self.producer.send('simulated-anomalies', anomaly_data)
+        time.sleep(duration_per_attack / 3)
+
+        # 3. DoS phase
+        attack_data2 = {
+            'attack_type': 'dos_flood',
+            'phase': '3_dos',
+            'intensity': event.attack_intensity,
+            'duration': duration_per_attack,
+            'timestamp': datetime.now().isoformat()
+        }
+        self.producer.send('simulated-attacks', attack_data2)
+        time.sleep(duration_per_attack / 3)
+
+        logger.info("⚔️ Multi-vector attack completed")
