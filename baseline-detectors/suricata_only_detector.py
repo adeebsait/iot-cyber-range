@@ -8,10 +8,10 @@ logger = logging.getLogger(__name__)
 
 def to_native(obj):
     """
-    Convert numpy and other non-JSON types into native Python types.
+    Convert numpy and other non‑JSON types into native Python types.
     (If you need numpy conversion, add similar handlers.)
     """
-    # For now, assume all fields are JSON serializable
+    # For now, assume all fields are JSON serialisable
     return obj
 
 class SuricataOnlyDetector:
@@ -31,8 +31,17 @@ class SuricataOnlyDetector:
         )
 
     def run(self):
+        """
+        Consume raw Suricata alerts from the `security-alerts` Kafka topic and
+        forward them to the `baseline-alerts` topic with a `detector_type` set
+        to `suricata_only`.  The evaluation framework listens for baseline
+        alerts and uses the `detector_type` field to categorise events, so
+        publishing Suricata detections to `baseline-alerts` ensures they
+        contribute to the per‑detector metrics.
+        """
         for msg in self.consumer:
             alert = msg.value
+            # Transform Suricata alert into a baseline detection format
             transformed = {
                 'timestamp': alert.get('timestamp'),
                 'detector_type': 'suricata_only',
@@ -49,9 +58,11 @@ class SuricataOnlyDetector:
                 'details': alert
             }
             try:
-                self.producer.send('security-alerts', transformed)
+                # Publish to the baseline alerts topic so the evaluator processes
+                # this detection under the `suricata_only` detector type.
+                self.producer.send('baseline-alerts', transformed)
                 self.producer.flush()
-                logger.info("🔔 Alert sent to security-alerts")
+                logger.info("🔔 Suricata baseline alert sent to baseline-alerts")
             except Exception as e:
                 logger.error(f"Alert sending error: {e}")
 
