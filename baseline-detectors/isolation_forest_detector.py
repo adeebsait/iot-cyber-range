@@ -20,6 +20,8 @@ class IsolationForestDetector:
         self.model = IsolationForest(contamination=0.1, random_state=42)
         self.training_data = []
         self.trained = False
+        # Lowered from 50 to 20 to speed up training for evaluation runs
+        self.min_samples = 20
         self.kafka_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
         self.consumer = KafkaConsumer(
             'device-telemetry',
@@ -33,7 +35,6 @@ class IsolationForestDetector:
             bootstrap_servers=[self.kafka_servers],
             value_serializer=lambda v: json.dumps(to_native(v)).encode('utf-8')
         )
-        self.min_samples = 50
 
     def run(self):
         for msg in self.consumer:
