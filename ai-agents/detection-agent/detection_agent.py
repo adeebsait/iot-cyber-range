@@ -205,7 +205,6 @@ class DetectionAgent:
             group_id='detection-agent',
             auto_offset_reset='earliest',  # Changed from 'latest' to 'earliest'
             enable_auto_commit=True,
-            consumer_timeout_ms=1000  # Add timeout to prevent hanging
         )
 
         self.kafka_producer = KafkaProducer(
