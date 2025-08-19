@@ -1,6 +1,6 @@
 %YAML 1.1
 ---
-# Suricata Configuration for IoT Healthcare Security
+# Suricata Configuration for IoT Healthcare Security Cyber Range
 
 # Default rule path
 default-rule-path: /etc/suricata/rules
@@ -22,7 +22,7 @@ run-as:
 # Packet capture       #
 ########################
 af-packet:
-  - interface: any  # Changed from ens33 to capture all interfaces
+  - interface: eth0  # Changed from 'any' to specific interface
     threads: auto
     defrag: yes
     cluster-id: 99
@@ -30,9 +30,9 @@ af-packet:
     tpacket-v3: yes
     use-mmap: yes
 
-# Alternative interfaces if needed
+# Alternative capture method if af-packet fails
 pcap:
-  - interface: any
+  - interface: eth0
 
 ########################
 # Detection settings   #
@@ -62,7 +62,7 @@ threading:
           default: "medium"
 
 ########################
-# Outputs              #
+# Outputs (FIXED)      #
 ########################
 outputs:
   # EVE JSON log for detailed analysis
@@ -112,25 +112,6 @@ outputs:
   # Unified2 for backward compatibility
   - unified2-alert:
       enabled: no
-
-########################
-# Kafka output         #
-########################
-outputs:
-  - eve-log:
-      enabled: yes
-      filetype: kafka
-      kafka:
-        bootstrap-servers: kafka:9092
-        topic: security-alerts
-        compression-codec: snappy
-        request-required-acks: 1
-      types:
-        - alert:
-            payload: yes
-            payload-printable: yes
-            packet: yes
-            metadata: yes
 
 ########################
 # Application layer    #
