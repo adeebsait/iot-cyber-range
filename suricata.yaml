@@ -1,38 +1,253 @@
 %YAML 1.1
 ---
-# Rule path
+# Suricata Configuration for IoT Healthcare Security
+
+# Default rule path
 default-rule-path: /etc/suricata/rules
 rule-files:
   - suricata.rules
+
+# Enhanced rule loading
+classification-file: /etc/suricata/classification.config
+reference-config-file: /etc/suricata/reference.config
 
 ########################
 # Privilege dropping   #
 ########################
 run-as:
-  user: suricata        # UID 1000 inside the official image
+  user: suricata
   group: suricata
 
 ########################
 # Packet capture       #
 ########################
 af-packet:
-  - interface: ens33
+  - interface: any  # Changed from ens33 to capture all interfaces
     threads: auto
     defrag: yes
     cluster-id: 99
     cluster-type: cluster_flow
     tpacket-v3: yes
+    use-mmap: yes
+
+# Alternative interfaces if needed
+pcap:
+  - interface: any
+
+########################
+# Detection settings   #
+########################
+detect-engine:
+  - profile: medium
+  - custom-values:
+      toclient-groups: 3
+      toserver-groups: 25
+  - inspection-recursion-limit: 3000
+
+# Multi-threading
+threading:
+  set-cpu-affinity: no
+  cpu-affinity:
+    - management-cpu-set:
+        cpu: [ 0 ]
+    - receive-cpu-set:
+        cpu: [ 0 ]
+    - worker-cpu-set:
+        cpu: [ "all" ]
+        mode: "exclusive"
+        prio:
+          low: [ 0 ]
+          medium: [ "1-2" ]
+          high: [ 3 ]
+          default: "medium"
 
 ########################
 # Outputs              #
 ########################
 outputs:
+  # EVE JSON log for detailed analysis
   - eve-log:
       enabled: yes
       filetype: regular
       filename: /var/log/suricata/eve.json
-      types: [alert]
+      rotate:
+        interval: daily
+        max-files: 7
+      types:
+        - alert:
+            payload: yes
+            payload-buffer-size: 4kb
+            payload-printable: yes
+            packet: yes
+            metadata: yes
+            http-body: yes
+            http-body-printable: yes
+        - http:
+            extended: yes
+        - dns:
+            query: yes
+            answer: yes
+        - tls:
+            extended: yes
+        - files:
+            force-magic: no
+        - smtp
+        - flow
+        - netflow
 
+  # Fast log for quick analysis
+  - fast:
+      enabled: yes
+      filename: /var/log/suricata/fast.log
+      append: yes
+
+  # Stats output
   - stats:
       enabled: yes
       filename: /var/log/suricata/stats.log
+      append: yes
+      totals: yes
+      threads: no
+
+  # Unified2 for backward compatibility
+  - unified2-alert:
+      enabled: no
+
+########################
+# Kafka output         #
+########################
+outputs:
+  - eve-log:
+      enabled: yes
+      filetype: kafka
+      kafka:
+        bootstrap-servers: kafka:9092
+        topic: security-alerts
+        compression-codec: snappy
+        request-required-acks: 1
+      types:
+        - alert:
+            payload: yes
+            payload-printable: yes
+            packet: yes
+            metadata: yes
+
+########################
+# Application layer    #
+########################
+app-layer:
+  protocols:
+    http:
+      enabled: yes
+      memcap: 64mb
+    tls:
+      enabled: yes
+      detection-ports:
+        dp: 443
+    mqtt:
+      enabled: yes
+      detection-ports:
+        dp: 1883, 8883
+    dns:
+      tcp:
+        enabled: yes
+        detection-ports:
+          dp: 53
+      udp:
+        enabled: yes
+        detection-ports:
+          dp: 53
+    smtp:
+      enabled: yes
+      mime:
+        decode-mime: yes
+        decode-base64: yes
+        decode-quoted-printable: yes
+        header-value-depth: 2000
+        extract-urls: yes
+
+########################
+# Logging              #
+########################
+logging:
+  default-log-level: info
+  default-log-format: "[%i] %t - (%f:%l) <%d> (%n) -- "
+  outputs:
+  - console:
+      enabled: yes
+  - file:
+      enabled: yes
+      level: info
+      filename: /var/log/suricata/suricata.log
+  - syslog:
+      enabled: no
+
+########################
+# Host OS policy       #
+########################
+host-os-policy:
+  windows: [0.0.0.0/0]
+  bsd: []
+  bsd-right: []
+  old-linux: []
+  linux: []
+  old-solaris: []
+  solaris: []
+  hpux10: []
+  hpux11: []
+  irix: []
+  macos: []
+  vista: []
+  windows2k3: []
+
+########################
+# Performance tuning   #
+########################
+max-pending-packets: 1024
+detect:
+  profile: medium
+  custom-values:
+    toclient-src-groups: 2
+    toclient-dst-groups: 3
+    toclient-sp-groups: 2
+    toclient-dp-groups: 3
+    toserver-src-groups: 2
+    toserver-dst-groups: 25
+    toserver-sp-groups: 2
+    toserver-dp-groups: 25
+  sgh-mpm-context: auto
+  inspection-recursion-limit: 3000
+
+# Capture settings
+capture:
+  disable-offloading: true
+
+# Defrag settings
+defrag:
+  memcap: 32mb
+  hash-size: 65536
+  trackers: 65535
+  max-frags: 65535
+  prealloc: yes
+  timeout: 60
+
+# Flow settings
+flow:
+  memcap: 128mb
+  hash-size: 65536
+  prealloc: 10000
+  emergency-recovery: 30
+  managers: 1
+  recyclers: 1
+
+# Stream settings
+stream:
+  memcap: 64mb
+  checksum-validation: yes
+  inline: auto
+  reassembly:
+    memcap: 256mb
+    depth: 1mb
+    toserver-chunk-size: 2560
+    toclient-chunk-size: 2560
+    randomize-chunk-size: yes
