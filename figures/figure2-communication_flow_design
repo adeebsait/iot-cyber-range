@@ -1,0 +1,38 @@
+---
+config:
+  theme: redux
+---
+sequenceDiagram
+    participant D as Device Sensors
+    participant G as Data Gateway
+    participant K as Kafka Broker
+    participant AI as AI Detection Agent
+    participant B as Baseline Agent
+    participant C as Coordination Agent
+    participant R as Response Agent
+    participant E as Evaluation Agent
+    Note over D,E: Normal Operation Cycle
+    D->>G: Device Telemetry Stream
+    D->>G: Vital Signs Data
+    G->>K: Normalised Data Publication
+    K->>AI: Device Data Distribution
+    K->>B: Baseline Analysis Data
+    AI->>AI: Hybrid AI Analysis
+    Note right of AI: LSTM + Isolation Forest
+    B->>B: Traditional Analysis
+    Note right of B: Signature Matching
+    alt Threat Detected
+        AI->>K: Threat Alert Publication
+        K->>C: Alert Coordination
+        K->>R: Response Trigger
+        K->>E: Performance Logging
+        C->>C: Multi-Agent Consensus
+        C->>K: Coordination Decision
+        K->>R: Response Authorisation
+        R->>R: Safety Validation
+        R->>K: Response Execution
+        Note over C,R: Emergency Response Protocol
+    end
+    E->>E: Metrics Collection
+    E->>K: Performance Data
+    Note over D,E: Continuous Monitoring Loop

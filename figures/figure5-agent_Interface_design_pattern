@@ -1,0 +1,57 @@
+---
+config:
+  theme: mc
+---
+classDiagram
+    class BaseAgent {
+        <<abstract>>
+        +String agentId
+        +String agentType
+        +AgentStatus status
+        +KafkaProducer producer
+        +KafkaConsumer consumer
+        +start()
+        +stop()
+        +getStatus()
+        +processMessage()*
+        +sendAlert()*
+    }
+    class AIDetectionAgent {
+        +LSTMAutoencoder lstmModel
+        +IsolationForest forestModel
+        +DecisionFusion fusionEngine
+        +CircularBuffer deviceBuffer
+        +CircularBuffer networkBuffer
+        +processMessage()
+        +sendAlert()
+        +trainModels()
+        +detectAnomalies()
+    }
+    class ResponseAgent {
+        +SafetyValidator validator
+        +ResponseExecutor executor
+        +ActionPlanner planner
+        +processMessage()
+        +sendAlert()
+        +validateSafety()
+        +executeResponse()
+    }
+    class EvaluationAgent {
+        +MetricsCollector collector
+        +StatisticalAnalyser analyser
+        +PerformanceMonitor monitor
+        +processMessage()
+        +sendAlert()
+        +collectMetrics()
+        +generateReports()
+    }
+    BaseAgent <|-- AIDetectionAgent
+    BaseAgent <|-- ResponseAgent
+    BaseAgent <|-- EvaluationAgent
+    AIDetectionAgent --> LSTMAutoencoder
+    AIDetectionAgent --> IsolationForest
+    AIDetectionAgent --> DecisionFusion
+    ResponseAgent --> SafetyValidator
+    ResponseAgent --> ResponseExecutor
+    EvaluationAgent --> MetricsCollector
+    EvaluationAgent --> StatisticalAnalyser

@@ -1,0 +1,71 @@
+---
+config:
+  theme: redux
+---
+flowchart BT
+ subgraph subGraph0["Threat Assessment"]
+        TA["Threat Analysis<br>Severity: High/Med/Low<br>Confidence: 0.0-1.0<br>Impact Assessment"]
+  end
+ subgraph subGraph1["Clinical Impact Analysis"]
+        CIA["Clinical Impact Assessor<br>Patient Risk Evaluation<br>Workflow Disruption Analysis"]
+        DDA["Device Dependency Analyser<br>Critical Device Identification<br>Alternative Pathway Check"]
+  end
+ subgraph subGraph2["Safety Constraints"]
+        SC["Safety Constraint Engine<br>Never Disable Life Support<br>Maintain Emergency Access<br>Preserve Critical Monitoring"]
+  end
+ subgraph subGraph3["Safety Validation"]
+        subGraph1
+        subGraph2
+  end
+ subgraph subGraph4["Action Selection"]
+        AS["Action Selector<br>Graduated Response<br>Risk-Benefit Analysis"]
+        AP["Action Planner<br>Execution Sequence<br>Rollback Procedures"]
+  end
+ subgraph subGraph5["Response Categories"]
+        IMM["Immediate Actions<br>&lt; 1 second<br>Alert Generation<br>Traffic Limiting"]
+        SHORT["Short-term Actions<br>1-5 seconds<br>Device Isolation<br>Network Segmentation"]
+        MED["Medium-term Actions<br>5-60 seconds<br>System Reconfiguration<br>Alternative Activation"]
+        LONG["Long-term Actions<br>&gt; 60 seconds<br>Policy Updates<br>Staff Procedures"]
+  end
+ subgraph subGraph6["Response Planning"]
+        subGraph4
+        subGraph5
+  end
+ subgraph subGraph7["Execution and Monitoring"]
+        EX["Response Executor<br>Action Implementation<br>Progress Monitoring"]
+        FB["Feedback Monitor<br>Effectiveness Assessment<br>Unintended Consequences"]
+  end
+ subgraph subGraph8["Response Agent Architecture"]
+        subGraph0
+        subGraph3
+        subGraph6
+        subGraph7
+  end
+    TA --> CIA & DDA
+    CIA --> SC
+    DDA --> SC
+    SC --> AS
+    AS --> AP
+    AP --> IMM & SHORT & MED & LONG
+    IMM --> EX
+    SHORT --> EX
+    MED --> EX
+    LONG --> EX
+    EX --> FB
+    FB --> TA
+     TA:::assessClass
+     CIA:::assessClass
+     DDA:::assessClass
+     SC:::safetyClass
+     AS:::planClass
+     AP:::planClass
+     IMM:::planClass
+     SHORT:::planClass
+     MED:::planClass
+     LONG:::planClass
+     EX:::execClass
+     FB:::execClass
+    classDef assessClass fill:#e3f2fd
+    classDef safetyClass fill:#fff3e0
+    classDef planClass fill:#e8f5e8
+    classDef execClass fill:#fce4ec

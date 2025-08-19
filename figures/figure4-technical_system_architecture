@@ -1,0 +1,127 @@
+---
+config:
+  theme: redux
+  layout: elk
+---
+flowchart TB
+ subgraph subGraph0["Physical Devices"]
+        PM["Patient Monitors<br>Heart Rate: 60-100 BPM<br>SpO2: 95-100%"]
+        IP["Infusion Pumps<br>Flow Rate: 1-999 ml/h<br>Pressure: 0-15 PSI"]
+        VS["Vital Sensors<br>Temp: 36-38°C<br>BP: 90-140 mmHg"]
+  end
+ subgraph subGraph1["Network Components"]
+        GW["IoT Gateway<br>Protocol Translation<br>Data Aggregation"]
+        RTR["Network Router<br>Traffic Monitoring<br>Packet Analysis"]
+  end
+ subgraph subGraph2["Healthcare IoT Layer"]
+        subGraph0
+        subGraph1
+  end
+ subgraph subGraph3["Data Ingestion Infrastructure"]
+        MQTT["MQTT Broker<br>Port: 1883<br>QoS: 1-2"]
+        SURI["Suricata IDS<br>Rule-based Detection<br>Network Monitoring"]
+        BRIDGE["MQTT-Kafka Bridge<br>Protocol Conversion<br>Message Routing"]
+  end
+ subgraph subGraph4["Kafka Infrastructure"]
+        K1["Kafka Broker 1<br>Leader Partition"]
+        K2["Kafka Broker 2<br>Replica Partition"]
+        K3["Kafka Broker 3<br>Replica Partition"]
+  end
+ subgraph subGraph5["Data Topics"]
+        DT["device-telemetry<br>Partitions: 3<br>Replication: 2"]
+        SA["security-alerts<br>Partitions: 2<br>Replication: 2"]
+        AA["ai-alerts<br>Partitions: 1<br>Replication: 3"]
+  end
+ subgraph subGraph6["Message Broker Cluster"]
+        subGraph4
+        subGraph5
+  end
+ subgraph subGraph7["Hybrid AI Agent"]
+        LSTM["LSTM Autoencoder<br>Sequence Length: 10<br>Features: 4<br>Threshold: Adaptive"]
+        IF["Isolation Forest<br>Estimators: 100<br>Contamination: 0.1<br>Max Samples: Auto"]
+        FUSION["Decision Fusion<br>LSTM Weight: 0.6<br>IF Weight: 0.4<br>Confidence Calc"]
+  end
+ subgraph subGraph8["Primary Detection"]
+        subGraph7
+  end
+ subgraph subGraph9["Baseline Comparison"]
+        RULE["Rule-Based Agent<br>Signature Matching<br>Threshold: 3 alerts/30s"]
+        LSTM_ONLY["LSTM-Only Agent<br>Device Analysis Only<br>No Network Data"]
+        IF_ONLY["Isolation Forest Only<br>Network Analysis Only<br>No Device Data"]
+  end
+ subgraph subGraph10["System Management"]
+        RESP["Response Agent<br>Safety Validation<br>Graduated Response<br>1-60s Action Time"]
+        COORD["Coordination Agent<br>Consensus Protocol<br>Task Allocation<br>Conflict Resolution"]
+        EVAL["Evaluation Agent<br>Performance Monitoring<br>Metrics Collection<br>Statistical Analysis"]
+  end
+ subgraph subGraph11["Multi-Agent Processing Framework"]
+        subGraph8
+        subGraph9
+        subGraph10
+  end
+ subgraph subGraph12["Automated Response"]
+        ALERT["Alert Generation<br>Severity Classification<br>Stakeholder Notification"]
+        ISOLATE["Network Isolation<br>VLAN Separation<br>Traffic Blocking"]
+        LOG["Audit Logging<br>Compliance Records<br>Forensic Data"]
+  end
+ subgraph subGraph13["Data Persistence"]
+        ELK["ELK Stack<br>Log Analysis<br>Real-time Search"]
+        METRICS["Metrics Database<br>Performance Data<br>Historical Analysis"]
+        DASH["Security Dashboard<br>Real-time Monitoring<br>Alert Management"]
+  end
+ subgraph subGraph14["Response and Storage"]
+        subGraph12
+        subGraph13
+  end
+    PM --> GW
+    IP --> GW
+    VS --> GW
+    GW --> MQTT
+    RTR --> SURI
+    MQTT --> BRIDGE
+    SURI --> BRIDGE
+    BRIDGE --> K1
+    K1 --> DT & SA & AA
+    DT --> LSTM & LSTM_ONLY
+    SA --> IF & RULE & IF_ONLY
+    LSTM --> FUSION
+    IF --> FUSION
+    FUSION --> AA
+    AA --> RESP & COORD & EVAL
+    RESP --> ALERT & ISOLATE & LOG
+    EVAL --> ELK & METRICS
+    METRICS --> DASH
+    COORD -.-> LSTM & RULE & RESP
+     PM:::deviceClass
+     IP:::deviceClass
+     VS:::deviceClass
+     GW:::deviceClass
+     RTR:::deviceClass
+     MQTT:::infraClass
+     SURI:::infraClass
+     BRIDGE:::infraClass
+     K1:::infraClass
+     K2:::infraClass
+     K3:::infraClass
+     DT:::infraClass
+     SA:::infraClass
+     AA:::infraClass
+     LSTM:::agentClass
+     IF:::agentClass
+     FUSION:::agentClass
+     RULE:::agentClass
+     LSTM_ONLY:::agentClass
+     IF_ONLY:::agentClass
+     RESP:::agentClass
+     COORD:::agentClass
+     EVAL:::agentClass
+     ALERT:::responseClass
+     ISOLATE:::responseClass
+     LOG:::responseClass
+     ELK:::responseClass
+     METRICS:::responseClass
+     DASH:::responseClass
+    classDef deviceClass fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef agentClass fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    classDef infraClass fill:#e8f5e8,stroke:#388e3c,stroke-width:2px
+    classDef responseClass fill:#fff8e1,stroke:#f57c00,stroke-width:2px

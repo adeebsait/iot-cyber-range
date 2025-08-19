@@ -1,0 +1,47 @@
+---
+config:
+  theme: redux
+---
+flowchart LR
+ subgraph subGraph0["Input Layer"]
+        IN["Input Shape: 10x4<br>Sequence Length: 10<br>Features: Heart Rate, SpO2, Temp, Time"]
+  end
+ subgraph Encoder["Encoder"]
+        E1["LSTM Layer 1<br>Units: 50<br>Activation: ReLU<br>Return Sequences: True<br>Dropout: 0.2"]
+        E2["LSTM Layer 2<br>Units: 25<br>Activation: ReLU<br>Return Sequences: False<br>Dropout: 0.2"]
+  end
+ subgraph Bottleneck["Bottleneck"]
+        BN["Repeat Vector<br>Repeats: 10<br>Compressed Representation"]
+  end
+ subgraph Decoder["Decoder"]
+        D1["LSTM Layer 3<br>Units: 25<br>Activation: ReLU<br>Return Sequences: True<br>Dropout: 0.2"]
+        D2["LSTM Layer 4<br>Units: 50<br>Activation: ReLU<br>Return Sequences: True<br>Dropout: 0.2"]
+  end
+ subgraph subGraph4["Output Layer"]
+        OUT["Time Distributed Dense<br>Units: 4<br>Activation: Linear<br>Reconstruction Output"]
+  end
+ subgraph subGraph5["LSTM Autoencoder Architecture"]
+        subGraph0
+        Encoder
+        Bottleneck
+        Decoder
+        subGraph4
+  end
+    IN --> E1
+    E1 --> E2
+    E2 --> BN
+    BN --> D1
+    D1 --> D2
+    D2 --> OUT
+     IN:::inputClass
+     E1:::encoderClass
+     E2:::encoderClass
+     BN:::bottleneckClass
+     D1:::decoderClass
+     D2:::decoderClass
+     OUT:::outputClass
+    classDef inputClass fill:#e8eaf6,stroke:#3f51b5
+    classDef encoderClass fill:#e1f5fe,stroke:#0288d1
+    classDef bottleneckClass fill:#fff3e0,stroke:#ff9800
+    classDef decoderClass fill:#e8f5e8,stroke:#4caf50
+    classDef outputClass fill:#fce4ec,stroke:#e91e63
