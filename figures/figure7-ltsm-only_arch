@@ -1,0 +1,46 @@
+---
+config:
+  theme: redux
+---
+flowchart LR
+ subgraph subGraph0["Data Input"]
+        DI["Device Telemetry<br>Heart Rate, SpO2<br>Temperature, BP"]
+  end
+ subgraph subGraph1["Processing Pipeline"]
+        PP["Sequence Creation<br>Window: 10 samples<br>Overlap: 5 samples"]
+        PN["Data Normalisation<br>Standard Scaling<br>Range: 0-1"]
+  end
+ subgraph subGraph2["LSTM Model"]
+        LM["LSTM Autoencoder<br>Same as Hybrid<br>Independent Training"]
+  end
+ subgraph subGraph3["Detection Logic"]
+        TH["Threshold Comparison<br>95th Percentile<br>Adaptive Updates"]
+        CL["Classification<br>Normal/Anomaly<br>Confidence Scoring"]
+  end
+ subgraph Output["Output"]
+        AL["Anomaly Alerts<br>Device-Only Focus<br>No Network Context"]
+  end
+ subgraph subGraph5["LSTM-Only Detection Agent"]
+        subGraph0
+        subGraph1
+        subGraph2
+        subGraph3
+        Output
+  end
+    DI --> PP
+    PP --> PN
+    PN --> LM
+    LM --> TH
+    TH --> CL
+    CL --> AL
+     DI:::inputClass
+     PP:::processClass
+     PN:::processClass
+     LM:::modelClass
+     TH:::processClass
+     CL:::processClass
+     AL:::outputClass
+    classDef inputClass fill:#e8eaf6
+    classDef processClass fill:#e1f5fe
+    classDef modelClass fill:#e8f5e8
+    classDef outputClass fill:#fce4ec

@@ -1,0 +1,54 @@
+---
+config:
+  theme: redux
+---
+graph TB
+    subgraph "Testing Framework Architecture"
+        subgraph "Unit Testing"
+            UT1[Agent Component Tests<br/>Individual Function Testing<br/>Mock Data Validation]
+            UT2[Algorithm Testing<br/>LSTM Performance<br/>Isolation Forest Accuracy]
+            UT3[Communication Testing<br/>Kafka Message Handling<br/>Protocol Validation]
+        end
+        subgraph "Integration Testing"
+            IT1[Agent Integration<br/>Multi-Agent Communication<br/>Coordination Protocols]
+            IT2[System Integration<br/>End-to-End Data Flow<br/>Response Execution]
+            IT3[Safety Integration<br/>Safety Constraint Validation<br/>Emergency Procedures]
+        end
+        subgraph "Performance Testing"
+            PT1[Load Testing<br/>High-Volume Data<br/>Stress Conditions]
+            PT2[Latency Testing<br/>Real-Time Requirements<br/>Response Time Validation]
+            PT3[Scalability Testing<br/>Agent Scaling<br/>Resource Utilisation]
+        end
+        subgraph "Security Testing"
+            ST1[Penetration Testing<br/>Attack Simulation<br/>Vulnerability Assessment]
+            ST2[Communication Security<br/>Encryption Validation<br/>Authentication Testing]
+            ST3[Privacy Testing<br/>Data Protection<br/>Compliance Validation]
+        end
+        subgraph "Acceptance Testing"
+            AT1[Healthcare Scenario Testing<br/>Clinical Workflow Integration<br/>Regulatory Compliance]
+            AT2[Performance Benchmarking<br/>Baseline Comparison<br/>Statistical Validation]
+            AT3[Safety Validation<br/>Patient Safety Assurance<br/>Emergency Response]
+        end
+    end
+    UT1 --> IT1
+    UT2 --> IT1
+    UT3 --> IT1
+    IT1 --> PT1
+    IT2 --> PT2
+    IT3 --> PT3
+    PT1 --> ST1
+    PT2 --> ST2
+    PT3 --> ST3
+    ST1 --> AT1
+    ST2 --> AT2
+    ST3 --> AT3
+    classDef unitClass fill:#e8eaf6
+    classDef integClass fill:#e1f5fe
+    classDef perfClass fill:#e8f5e8
+    classDef secClass fill:#fff3e0
+    classDef acceptClass fill:#fce4ec
+    class UT1,UT2,UT3 unitClass
+    class IT1,IT2,IT3 integClass
+    class PT1,PT2,PT3 perfClass
+    class ST1,ST2,ST3 secClass
+    class AT1,AT2,AT3 acceptClass
