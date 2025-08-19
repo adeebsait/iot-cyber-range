@@ -5,10 +5,14 @@ import numpy as np
 from kafka import KafkaConsumer, KafkaProducer
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
-from detection_agent import to_native  # import helper from detection_agent.py
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+def to_native(obj):
+    if isinstance(obj, (np.generic,)):
+        return obj.item()
+    return obj
 
 class IsolationForestDetector:
     def __init__(self):
@@ -22,7 +26,8 @@ class IsolationForestDetector:
             bootstrap_servers=[self.kafka_servers],
             value_deserializer=lambda x: json.loads(x.decode('utf-8')),
             group_id='isolation-forest-detector',
-            auto_offset_reset='earliest'
+            auto_offset_reset='earliest',
+            consumer_timeout_ms=10000
         )
         self.producer = KafkaProducer(
             bootstrap_servers=[self.kafka_servers],
@@ -33,14 +38,14 @@ class IsolationForestDetector:
     def run(self):
         for msg in self.consumer:
             data = msg.value
-            self.training_data.append(self._extract_features(data))
+            features = self._extract_features(data)
+            self.training_data.append(features)
             if not self.trained and len(self.training_data) >= self.min_samples:
                 self._train()
             if self.trained:
-                self._detect(data)
+                self._detect(data, features)
 
     def _extract_features(self, data):
-        # Example features, adjust to your telemetry schema
         return [
             data.get('heart_rate', 0),
             data.get('spo2', 0),
@@ -48,16 +53,14 @@ class IsolationForestDetector:
         ]
 
     def _train(self):
-        logger.info("Training Isolation Forest with %d samples", len(self.training_data))
         X = np.array(self.training_data)
         X_scaled = self.scaler.fit_transform(X)
         self.model.fit(X_scaled)
         self.trained = True
         logger.info("Isolation Forest training complete")
 
-    def _detect(self, data):
-        feat = np.array(self._extract_features(data)).reshape(1, -1)
-        feat_scaled = self.scaler.transform(feat)
+    def _detect(self, data, features):
+        feat_scaled = self.scaler.transform([features])
         pred = self.model.predict(feat_scaled)[0]
         score = float(self.model.decision_function(feat_scaled))
         if pred == -1:
@@ -69,8 +72,8 @@ class IsolationForestDetector:
                 'threshold': None,
                 'severity': 'high',
                 'device_id': data.get('device_id'),
-                'confidence': float(min(1, abs(score))),
-                'details': f'IsolationForest anomaly (score {score:.4f})'
+                'confidence': min(1.0, abs(score)),
+                'details': data
             }
             try:
                 self.producer.send('baseline-alerts', alert)
