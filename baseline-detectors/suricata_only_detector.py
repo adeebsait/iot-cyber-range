@@ -2,10 +2,17 @@ import os
 import json
 import logging
 from kafka import KafkaConsumer, KafkaProducer
-from detection_agent import to_native  # import helper from detection_agent.py
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+def to_native(obj):
+    """
+    Convert numpy and other non-JSON types into native Python types.
+    (If you need numpy conversion, add similar handlers.)
+    """
+    # For now, assume all fields are JSON serializable
+    return obj
 
 class SuricataOnlyDetector:
     def __init__(self):
@@ -15,7 +22,8 @@ class SuricataOnlyDetector:
             bootstrap_servers=[self.kafka_servers],
             value_deserializer=lambda x: json.loads(x.decode('utf-8')),
             group_id='suricata-only-detector',
-            auto_offset_reset='earliest'
+            auto_offset_reset='earliest',
+            consumer_timeout_ms=10000
         )
         self.producer = KafkaProducer(
             bootstrap_servers=[self.kafka_servers],
@@ -25,11 +33,11 @@ class SuricataOnlyDetector:
     def run(self):
         for msg in self.consumer:
             alert = msg.value
-            # Transform Suricata eve.json alert to evaluation schema
             transformed = {
                 'timestamp': alert.get('timestamp'),
                 'detector_type': 'suricata_only',
                 'method': 'suricata',
+                'signature_id': alert.get('alert', {}).get('signature_id'),
                 'signature': alert.get('alert', {}).get('signature'),
                 'severity': alert.get('alert', {}).get('severity'),
                 'src_ip': alert.get('src_ip'),
