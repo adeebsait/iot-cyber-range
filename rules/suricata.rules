@@ -1,15 +1,44 @@
-# IoT Healthcare Security Rules
-# Malformed MQTT packet detection
-alert tcp any any -> any 1883 (msg:"IoT: Malformed MQTT packet detected"; content:"|30 FF|"; offset:0; depth:2; classtype:protocol-command-decode; sid:1000001; rev:1;)
+# IoT Healthcare Security Rules - Comprehensive Detection
 
-# MQTT DoS - rapid connection attempts
-alert tcp any any -> any 1883 (msg:"IoT: MQTT DoS attack - rapid connections"; flags:S; threshold:type both, track by_src, count 10, seconds 5; classtype:attempted-dos; sid:1000002; rev:1;)
+# Device Authentication and Connection Anomalies
+alert tcp any any -> any 1883 (msg:"IoT Device Rapid MQTT Connections"; flow:established; threshold: type both, track by_src, count 10, seconds 60; classtype:attempted-dos; sid:1000001; rev:1;)
+alert tcp any any -> any 9092 (msg:"Kafka High Volume Access"; threshold: type both, track by_src, count 15, seconds 30; classtype:suspicious-traffic; sid:1000002; rev:1;)
+alert tcp any any -> any 8080 (msg:"Suspicious HTTP to Device Management"; threshold: type both, track by_src, count 8, seconds 45; classtype:web-application-attack; sid:1000003; rev:1;)
 
-# Unauthorized MQTT topic access
-alert tcp any any -> any 1883 (msg:"IoT: Unauthorized access to admin topics"; content:"healthcare/admin/"; nocase; classtype:attempted-admin; sid:1000003; rev:1;)
+# Network Scanning and Reconnaissance
+alert icmp any any -> any any (msg:"ICMP Scan Pattern Detected"; threshold: type both, track by_src, count 5, seconds 10; classtype:attempted-recon; sid:1000004; rev:1;)
+alert tcp any any -> any any (msg:"Port Scan Detected"; flags:S; threshold: type both, track by_src, count 8, seconds 20; classtype:attempted-recon; sid:1000005; rev:1;)
+alert tcp any any -> any [1-1024] (msg:"Privileged Port Scan"; flags:S; threshold: type both, track by_src, count 5, seconds 15; classtype:attempted-recon; sid:1000006; rev:1;)
 
-# Abnormal payload size
-alert tcp any any -> any 1883 (msg:"IoT: Abnormally large MQTT payload"; dsize:>1024; content:"healthcare/"; classtype:policy-violation; sid:1000004; rev:1;)
+# Protocol and Traffic Anomalies
+alert tcp any any -> any any (msg:"Suspicious TCP Flags Combination"; flags:FPU; classtype:protocol-command-decode; sid:1000007; rev:1;)
+alert udp any any -> any any (msg:"Large UDP Packet Anomaly"; dsize:>1000; classtype:protocol-command-decode; sid:1000008; rev:1;)
+alert tcp any any -> any any (msg:"Abnormally Large TCP Payload"; dsize:>8000; classtype:protocol-command-decode; sid:1000009; rev:1;)
 
-# Suspicious device ID pattern
-alert tcp any any -> any 1883 (msg:"IoT: Suspicious device ID pattern"; pcre:"/healthcare\/[^\/]{20,}/"; classtype:trojan-activity; sid:1000005; rev:1;)
+# Healthcare IoT Specific Attacks
+alert tcp any any -> any any (msg:"Potential Healthcare Device Data Exfiltration"; content:"heart_rate"; content:"spo2"; content:"body_temp"; distance:0; within:500; classtype:trojan-activity; sid:1000010; rev:1;)
+alert tcp any any -> any any (msg:"Medical Device Command Injection"; content:"device_id"; content:"command"; pcre:"/device_id.*command.*(restart|shutdown|config)/i"; classtype:attempted-admin; sid:1000011; rev:1;)
+
+# Denial of Service Patterns
+alert tcp any any -> any any (msg:"SYN Flood Attack"; flags:S; threshold: type both, track by_src, count 20, seconds 10; classtype:attempted-dos; sid:1000012; rev:1;)
+alert tcp any any -> any any (msg:"Connection Flood"; flow:established; threshold: type both, track by_src, count 50, seconds 60; classtype:attempted-dos; sid:1000013; rev:1;)
+
+# Data Integrity Attacks
+alert tcp any any -> any any (msg:"Potential Sensor Data Manipulation"; content:"heart_rate"; content:"|00|"; distance:0; within:200; classtype:policy-violation; sid:1000014; rev:1;)
+alert tcp any any -> any any (msg:"Timestamp Manipulation Detected"; pcre:"/timestamp.*[0-9]{4}-13-[0-9]{2}/"; classtype:policy-violation; sid:1000015; rev:1;)
+
+# Advanced Persistent Threats
+alert tcp any any -> any any (msg:"Potential APT Command and Control"; content:"POST"; http_method; content:"api/v1"; http_uri; content:"auth_token"; http_client_body; classtype:trojan-activity; sid:1000016; rev:1;)
+alert tcp any any -> any any (msg:"Suspicious Encrypted Traffic Pattern"; content:"|16 03|"; depth:2; threshold: type both, track by_src, count 30, seconds 300; classtype:policy-violation; sid:1000017; rev:1;)
+
+# Device Impersonation
+alert tcp any any -> any any (msg:"Device Identity Spoofing Attempt"; content:"device_id"; pcre:"/device_id.*(admin|root|test|default)/i"; classtype:attempted-user; sid:1000018; rev:1;)
+alert tcp any any -> any any (msg:"Multiple Device ID Usage"; content:"device_id"; threshold: type both, track by_src, count 5, seconds 60; classtype:policy-violation; sid:1000019; rev:1;)
+
+# Network Infrastructure Attacks
+alert tcp any any -> any 22 (msg:"SSH Brute Force Attempt"; flow:established; threshold: type both, track by_src, count 5, seconds 60; classtype:attempted-admin; sid:1000020; rev:1;)
+alert tcp any any -> any 23 (msg:"Telnet Access Attempt"; flow:established; classtype:policy-violation; sid:1000021; rev:1;)
+
+# IoT Botnet Communication
+alert tcp any any -> any any (msg:"IoT Botnet Command Pattern"; content:"cmd"; content:"exec"; distance:0; within:100; classtype:trojan-activity; sid:1000022; rev:1;)
+alert udp any any -> any 53 (msg:"DNS Tunneling Attempt"; content:"|01 00 00 01|"; depth:4; dsize:>100; classtype:policy-violation; sid:1000023; rev:1;)
