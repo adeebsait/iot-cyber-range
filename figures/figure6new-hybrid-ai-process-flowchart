@@ -1,0 +1,28 @@
+---
+config:
+  theme: redux
+---
+flowchart TD
+    A[Device Telemetry & Network Alerts Input] --> B{Data Validation & Preprocessing}
+    B -->|Valid Data| C[Feature Extraction]
+    B -->|Invalid Data| Z[Return Null Threat Assessment]
+    C --> D[Temporal Features<br/>Healthcare IoT Data]
+    C --> E[Network Features<br/>Security Alerts]
+    D --> F[LSTM Autoencoder<br/>Temporal Analysis]
+    E --> G[Isolation Forest<br/>Network Analysis]
+    F --> H[LSTM Results<br/>Reconstruction Errors]
+    G --> I[Isolation Results<br/>Anomaly Scores]
+    H --> J[Decision Fusion<br/>Adaptive Weighting]
+    I --> J
+    J --> K[Calculate Confidence<br/>& Threat Level]
+    K --> L{Threat Level > Threshold?}
+    L -->|Yes| M[Create Threat Assessment<br/>Log Detection]
+    L -->|No| N[Return Null Assessment<br/>Below Threshold]
+    M --> O[Output: Threat Assessment<br/>& Confidence Score]
+    N --> P[Output: No Threat Detected]
+    style A fill:#e1f5fe
+    style F fill:#fff3e0
+    style G fill:#f3e5f5
+    style J fill:#e8f5e8
+    style O fill:#ffebee
+    style P fill:#f1f8e9
